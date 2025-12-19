@@ -691,3 +691,87 @@ DELIMITER ;
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+
+USE `bansach`;
+
+-- 1. Thêm Thể loại
+INSERT INTO `theloai` (`TenTheLoai`) VALUES 
+('Tiểu thuyết'),
+('Kinh tế'),
+('Công nghệ thông tin'),
+('Tâm lý - Kỹ năng sống'),
+('Truyện tranh');
+
+-- 2. Thêm Tác giả
+INSERT INTO `tacgia` (`TenTacGia`) VALUES 
+('Nguyễn Nhật Ánh'),
+('J.K. Rowling'),
+('Philip Kotler'),
+('Robert C. Martin'),
+('Dale Carnegie');
+
+-- 3. Thêm Nhà xuất bản
+INSERT INTO `nhaxuatban` (`TenNXB`, `DiaChi`, `SoDienThoai`) VALUES 
+('NXB Trẻ', '161B Lý Chính Thắng, Q.3, TP.HCM', '02839316289'),
+('NXB Kim Đồng', '55 Quang Trung, Hà Nội', '02439434730'),
+('NXB Lao Động', '175 Giảng Võ, Hà Nội', '02438515380');
+
+-- 4. Thêm Nhân viên (Mật khẩu để minh họa, thực tế nên mã hóa)
+INSERT INTO `nhanvien` (`TenDangNhap`, `MatKhau`, `HoTen`, `VaiTro`, `TrangThai`) VALUES 
+('admin', '123456', 'Nguyễn Văn Quản Lý', 'QUAN_LY', 1),
+('thukho01', '123456', 'Trần Thị Kho', 'THU_KHO', 1),
+('thungan01', '123456', 'Lê Văn Thu Ngân', 'THU_NGAN', 1);
+
+-- 5. Thêm Khách hàng
+INSERT INTO `khachhang` (`TenKH`, `SoDienThoai`, `Email`, `DiemTichLuy`) VALUES 
+('Phạm Minh Tuấn', '0909123456', 'tuan.pham@email.com', 10),
+('Trần Thu Hà', '0918123789', 'ha.tran@email.com', 50),
+('Khách vãng lai', NULL, NULL, 0);
+
+-- 6. Thêm Quy định
+INSERT INTO `quydinh` (`TenQuyDinh`, `GiaTri`, `MoTa`) VALUES 
+('SoLuongNhapToiThieu', '10', 'Số lượng nhập ít nhất cho mỗi đầu sách'),
+('TonKhoToiThieu', '20', 'Mức tồn kho báo động cần nhập thêm');
+
+-- 7. Thêm Sách
+-- Giả sử ID tự tăng: 1: Mắt Biếc, 2: Harry Potter, 3: Marketing, 4: Clean Code, 5: Đắc Nhân Tâm
+INSERT INTO `sach` (`ISBN`, `TenSach`, `MaTheLoai`, `MaNXB`, `GiaNhap`, `GiaBanLe`, `SoLuongTon`, `MoTa`) VALUES 
+('978604105', 'Mắt Biếc', 1, 1, 70000, 110000, 0, 'Tiểu thuyết lãng mạn của Nguyễn Nhật Ánh'),
+('978054501', 'Harry Potter và Hòn đá phù thủy', 1, 1, 150000, 250000, 0, 'Tập 1 bộ truyện Harry Potter'),
+('978013214', 'Clean Code', 3, 3, 400000, 600000, 0, 'Sách gối đầu giường cho lập trình viên'),
+('978123456', 'Đắc Nhân Tâm', 4, 3, 50000, 86000, 0, 'Nghệ thuật thu phục lòng người');
+
+-- 8. Liên kết Sách và Tác giả
+INSERT INTO `sach_tacgia` (`MaSach`, `MaTacGia`) VALUES 
+(1, 1), -- Mắt Biếc - Nguyễn Nhật Ánh
+(2, 2), -- Harry Potter - JK Rowling
+(3, 4), -- Clean Code - Robert C. Martin
+(4, 5); -- Đắc Nhân Tâm - Dale Carnegie
+
+-- 9. Tạo Phiếu nhập sách
+INSERT INTO `phieunhapsach` (`MaNV`, `TongTienNhap`) VALUES 
+(2, 17500000); -- Nhân viên Thủ kho nhập
+
+-- 10. Tạo Chi tiết phiếu nhập
+-- Nhập 100 cuốn Mắt Biếc, 50 cuốn Harry Potter, 20 cuốn Clean Code
+INSERT INTO `chitietphieunhap` (`MaPhieuNhap`, `MaSach`, `SoLuongNhap`, `GiaNhap`) VALUES 
+(1, 1, 100, 70000),   -- 100 * 70k = 7tr
+(1, 2, 50, 150000),  -- 50 * 150k = 7.5tr
+(1, 3, 20, 150000);  -- (Giá nhập sai lệch chút để test)
+
+-- 11. Tạo Hóa đơn bán sách
+INSERT INTO `hoadonbansach` (`MaNV`, `MaKH`, `TongTien`, `TienGiamGia`) VALUES 
+(3, 1, 360000, 10000); -- Nhân viên Thu ngân bán cho Khách ID 1
+
+-- 12. Tạo Chi tiết hóa đơn
+-- Khách mua 1 cuốn Mắt Biếc và 1 cuốn Harry Potter
+INSERT INTO `chitiethoadon` (`MaHoaDon`, `MaSach`, `SoLuongBan`, `GiaBan`) VALUES 
+(1, 1, 1, 110000),
+(1, 2, 1, 250000);
+
+-- 13. Tạo Phiếu thu tiền (Thanh toán cho hóa đơn trên)
+INSERT INTO `phieuthutien` (`MaHoaDon`, `SoTienThu`, `PhuongThucThanhToan`) VALUES 
+(1, 350000, 'TIEN_MAT');
+
+
