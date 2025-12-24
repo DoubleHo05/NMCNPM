@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, RotateCcw, Check } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 const BookList: React.FC = () => {
   const { books, deleteBook } = useStore();
+  const { canManageBooks } = usePermissions();
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   
@@ -229,10 +231,12 @@ const BookList: React.FC = () => {
                     <Download size={16} />
                     <span>Xuất</span>
                 </button>
-                <Link to="/books/import" className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors whitespace-nowrap">
-                    <Plus size={16} />
-                    <span>Thêm sách mới</span>
-                </Link>
+                {canManageBooks && (
+                  <Link to="/books/import" className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors whitespace-nowrap">
+                      <Plus size={16} />
+                      <span>Thêm sách mới</span>
+                  </Link>
+                )}
             </div>
         </div>
       </div>
@@ -331,20 +335,24 @@ const BookList: React.FC = () => {
                         >
                             <Eye size={16} />
                         </button>
-                        <button 
-                            onClick={() => navigate(`/books/edit/${book.id}`)}
-                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" 
-                            title="Chỉnh sửa"
-                        >
-                            <Edit size={16} />
-                        </button>
-                        <button 
-                            onClick={() => handleDelete(book.id, book.title)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" 
-                            title="Xoá"
-                        >
-                            <Trash2 size={16} />
-                        </button>
+                        {canManageBooks && (
+                          <>
+                            <button 
+                                onClick={() => navigate(`/books/edit/${book.id}`)}
+                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" 
+                                title="Chỉnh sửa"
+                            >
+                                <Edit size={16} />
+                            </button>
+                            <button 
+                                onClick={() => handleDelete(book.id, book.title)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" 
+                                title="Xoá"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
                      </div>
                   </td>
                 </tr>

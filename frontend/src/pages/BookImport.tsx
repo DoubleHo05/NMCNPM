@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../context/StoreContext';
-import { Plus, Trash2, AlertCircle, Save, X, UploadCloud, Minus, History, FilePlus, ChevronDown, ChevronUp } from 'lucide-react';
+import { usePermissions } from '../hooks/usePermissions';
+import { Plus, Trash2, AlertCircle, Save, X, UploadCloud, Minus, History, FilePlus, ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react';
 import { Book, ImportTicket } from '../types';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
@@ -98,12 +99,39 @@ const ImportHistoryView: React.FC = () => {
 
 const BookImport: React.FC = () => {
   const { importBooks, rules, addNotification } = useStore();
+  const { canImportBooks, userRole } = usePermissions();
   const navigate = useNavigate();
   const [items, setItems] = useState<ImportItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
+
+  // Show access denied if user doesn't have permission
+  if (!canImportBooks) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
+        <div className="text-center max-w-md">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <ShieldAlert className="text-red-600" size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Không có quyền truy cập</h2>
+          <p className="text-slate-600 mb-4">
+            Bạn không có quyền nhập sách. Chức năng này chỉ dành cho <strong>Thủ kho</strong> và <strong>Quản lý</strong>.
+          </p>
+          <p className="text-sm text-slate-500">
+            Vai trò của bạn: <span className="font-semibold">{userRole === 'THU_NGAN' ? 'Thu ngân' : userRole}</span>
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-6 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Về trang chủ
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const initialBookState: Book = {
     id: '', 

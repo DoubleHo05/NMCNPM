@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -31,13 +32,16 @@ async function main() {
   // 3. NXB
   const nxb1 = await prisma.nhaXuatBan.create({ data: { tenNXB: 'NXB Trẻ', diaChi: 'TP.HCM' } });
 
-  // 4. Nhân viên
+  // 4. Nhân viên (mật khẩu được hash)
+  const hashedPassword = await bcrypt.hash('admin123', 10);
   const nv = await prisma.nhanVien.create({
     data: {
       tenDangNhap: 'admin',
-      matKhau: '123456',
+      matKhau: hashedPassword,
       hoTen: 'Nguyễn Văn Quản Lý',
-      vaiTro: 'QUAN_LY'
+      email: 'admin@bookstore.com',
+      vaiTro: 'QUAN_LY',
+      trangThai: true
     }
   });
 

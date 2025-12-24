@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Book, 
@@ -53,6 +54,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { books, notifications, markNotificationsAsRead } = useStore();
+  const { user } = useAuth();
+  
+  // Check if user is manager
+  const isManager = user?.vaiTro === 'QUAN_LY';
   
   // -- Dropdown Menu State --
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -177,6 +182,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
           <div className="px-4 py-2 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
             Hệ thống
           </div>
+          {isManager && (
+            <SidebarItem to="/users" icon={User} label="Quản lý nhân viên" />
+          )}
           <SidebarItem to="/reports" icon={FileText} label="Báo cáo (BM5)" />
           <SidebarItem to="/settings" icon={Settings} label="Quy định (QĐ6)" />
         </nav>
