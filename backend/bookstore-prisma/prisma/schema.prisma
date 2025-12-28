@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum VaiTro {
+  THU_KHO
+  THU_NGAN
+  QUAN_LY
+}
+
+enum PhuongThucThanhToan {
+  TIEN_MAT
+  THE_NGAN_HANG
+  VI_DIEN_TU
+}
+
+model NhanVien {
+  maNV          Int              @id @default(autoincrement()) @map("MaNV")
+  tenDangNhap   String           @unique @db.VarChar(50) @map("TenDangNhap")
+  matKhau       String           @db.VarChar(255) @map("MatKhau")
+  hoTen         String           @db.VarChar(100) @map("HoTen")
+  email         String?          @unique @db.VarChar(100) @map("Email")
+  soDienThoai   String?          @db.VarChar(20) @map("SoDienThoai")
+  vaiTro        VaiTro           @map("VaiTro")
+  trangThai     Boolean?         @default(true) @map("TrangThai")
+  createdAt     DateTime?        @default(now()) @map("CreatedAt")
+  updatedAt     DateTime?        @updatedAt @map("UpdatedAt")
+  
+  hoadon        HoaDonBanSach[]
+  phieuNhap     PhieuNhapSach[]
+
+  @@map("nhanvien")
+}
+
+model KhachHang {
+  maKH        Int              @id @default(autoincrement()) @map("MaKH")
+  tenKH       String?          @db.VarChar(100) @map("TenKH")
+  soDienThoai String?          @db.VarChar(20) @map("SoDienThoai")
+  email       String?          @db.VarChar(100) @map("Email")
+  diemTichLuy Int?             @default(0) @map("DiemTichLuy")
+  
+  hoadon      HoaDonBanSach[]
+
+  @@map("khachhang")
+}
+
+model TheLoai {
+  maTheLoai  Int     @id @default(autoincrement()) @map("MaTheLoai")
+  tenTheLoai String  @unique @db.VarChar(100) @map("TenTheLoai")
+  sach       Sach[]
+
+  @@map("theloai")
+}
+
+model NhaXuatBan {
+  maNXB       Int     @id @default(autoincrement()) @map("MaNXB")
+  tenNXB      String  @unique @db.VarChar(255) @map("TenNXB")
+  diaChi      String? @db.VarChar(500) @map("DiaChi")
+  soDienThoai String? @db.VarChar(20) @map("SoDienThoai")
+  sach        Sach[]
+
+  @@map("nhaxuatban")
+}
+
+model Sach {
+  maSach      Int      @id @default(autoincrement()) @map("MaSach")
+  isbn        String?  @unique @db.VarChar(20) @map("ISBN")
+  tenSach     String   @db.VarChar(500) @map("TenSach")
+  maTheLoai   Int?     @map("MaTheLoai")
+  maNXB       Int?     @map("MaNXB")
+  giaNhap     Decimal  @db.Decimal(15, 2) @map("GiaNhap")
+  giaBanLe    Decimal  @db.Decimal(15, 2) @map("GiaBanLe")
+  soLuongTon  Int?     @default(0) @map("SoLuongTon")
+  moTa        String?  @db.Text @map("MoTa")
+  barcode     String?  @db.VarChar(100) @map("Barcode")
+
+  theLoai     TheLoai? @relation(fields: [maTheLoai], references: [maTheLoai])
+  nhaXuatBan  NhaXuatBan? @relation(fields: [maNXB], references: [maNXB])
+  
+  tacGia      SachTacGia[]
+  chiTietHoaDon ChiTietHoaDon[]
+  chiTietPhieuNhap ChiTietPhieuNhap[]
+
+  @@map("sach")
+}
+
+model TacGia {
+  maTacGia  Int          @id @default(autoincrement()) @map("MaTacGia")
+  tenTacGia String       @db.VarChar(100) @map("TenTacGia")
+  sach      SachTacGia[]
+
+  @@map("tacgia")
+}
+
+model SachTacGia {
+  maSach   Int @map("MaSach")
+  maTacGia Int @map("MaTacGia")
+  
+  sach     Sach   @relation(fields: [maSach], references: [maSach])
+  tacGia   TacGia @relation(fields: [maTacGia], references: [maTacGia])
+
+  @@id([maSach, maTacGia])
+  @@map("sach_tacgia")
+}
+
+model HoaDonBanSach {
+  maHoaDon    Int      @id @default(autoincrement()) @map("MaHoaDon")
+  maNV        Int      @map("MaNV")
+  maKH        Int?     @map("MaKH")
+  ngayBan     DateTime? @default(now()) @map("NgayBan")
+  tongTien    Decimal? @db.Decimal(15, 2) @map("TongTien")
+  tienGiamGia Decimal? @default(0.00) @db.Decimal(15, 2) @map("TienGiamGia")
+  thanhTien   Decimal? @default(dbgenerated()) @db.Decimal(15, 2) @map("ThanhTien")
+
+  nhanVien    NhanVien @relation(fields: [maNV], references: [maNV])
+  khachHang   KhachHang? @relation(fields: [maKH], references: [maKH])
+  chiTiet     ChiTietHoaDon[]
+  phieuThu    PhieuThuTien[]
+
+  @@map("hoadonbansach")
+}
+
+model ChiTietHoaDon {
+  maCTHD      Int      @id @default(autoincrement()) @map("MaCTHD")
+  maHoaDon    Int?     @map("MaHoaDon")
+  maSach      Int?     @map("MaSach")
+  soLuongBan  Int      @map("SoLuongBan")
+  giaBan      Decimal  @db.Decimal(15, 2) @map("GiaBan")
+  thanhTien   Decimal? @default(dbgenerated()) @db.Decimal(15, 2) @map("ThanhTien")
+
+  hoaDon      HoaDonBanSach? @relation(fields: [maHoaDon], references: [maHoaDon])
+  sach        Sach? @relation(fields: [maSach], references: [maSach])
+
+  @@map("chitiethoadon")
+}
+
+model PhieuNhapSach {
+  maPhieuNhap  Int      @id @default(autoincrement()) @map("MaPhieuNhap")
+  maNV         Int      @map("MaNV")
+  ngayNhap     DateTime? @default(now()) @map("NgayNhap")
+  tongTienNhap Decimal? @db.Decimal(15, 2) @map("TongTienNhap")
+
+  nhanVien     NhanVien @relation(fields: [maNV], references: [maNV])
+  chiTiet      ChiTietPhieuNhap[]
+
+  @@map("phieunhapsach")
+}
+
+model ChiTietPhieuNhap {
+  maCTPN       Int      @id @default(autoincrement()) @map("MaCTPN")
+  maPhieuNhap  Int?     @map("MaPhieuNhap")
+  maSach       Int?     @map("MaSach")
+  soLuongNhap  Int      @map("SoLuongNhap")
+  giaNhap      Decimal  @db.Decimal(15, 2) @map("GiaNhap")
+  thanhTien    Decimal? @default(dbgenerated()) @db.Decimal(15, 2) @map("ThanhTien")
+
+  phieuNhap    PhieuNhapSach? @relation(fields: [maPhieuNhap], references: [maPhieuNhap])
+  sach         Sach? @relation(fields: [maSach], references: [maSach])
+
+  @@map("chitietphieunhap")
+}
+
+model PhieuThuTien {
+  maPhieuThu          Int                 @id @default(autoincrement()) @map("MaPhieuThu")
+  maHoaDon            Int                 @map("MaHoaDon")
+  soTienThu           Decimal             @db.Decimal(15, 2) @map("SoTienThu")
+  ngayThu             DateTime?           @default(now()) @map("NgayThu")
+  phuongThucThanhToan PhuongThucThanhToan @map("PhuongThucThanhToan")
+
+  hoaDon              HoaDonBanSach       @relation(fields: [maHoaDon], references: [maHoaDon])
+
+  @@map("phieuthutien")
+}
+
+model QuyDinh {
+  maQuyDinh   Int      @id @default(autoincrement()) @map("MaQuyDinh")
+  tenQuyDinh  String   @unique @db.VarChar(255) @map("TenQuyDinh")
+  giaTri      String   @db.Text @map("GiaTri")
+  moTa        String?  @db.VarChar(500) @map("MoTa")
+  ngayCapNhat DateTime? @default(now()) @map("NgayCapNhat")
+
+  @@map("quydinh")
+}
