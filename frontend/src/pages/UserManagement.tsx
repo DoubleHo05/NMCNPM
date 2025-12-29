@@ -1,27 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  ToggleLeft, 
+import {
+  Users,
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  ToggleLeft,
   ToggleRight,
   X,
   Loader2,
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
-import { 
-  getAllUsers, 
-  createUser, 
-  updateUser, 
-  deleteUser, 
+import {
+  getAllUsers,
+  createUser,
+  updateUser,
+  deleteUser,
   updateUserStatus,
-  CreateUserInput,
-  UpdateUserInput 
+  type CreateUserInput,
+  type UpdateUserInput
 } from '../services/userService';
-import { User } from '../services/authService';
+import type { User } from '../services/authService';
 
 // Role labels in Vietnamese
 const roleLabels: Record<string, string> = {
@@ -229,7 +229,7 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);

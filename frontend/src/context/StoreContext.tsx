@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Book, Customer, ImportTicket, Invoice, PaymentReceipt, SystemRules, Notification } from '../types';
+import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import type { Book, Customer, ImportTicket, Invoice, PaymentReceipt, SystemRules, Notification } from '../types';
 import { INITIAL_BOOKS, INITIAL_CUSTOMERS, INITIAL_RULES } from '../constants';
 
 interface StoreContextType {
@@ -77,8 +77,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (item.quantity < rules.minImportQuantity) {
         return { success: false, message: `QĐ1 Vi phạm: Sách "${item.bookDetails.title}" nhập ${item.quantity} (Tối thiểu ${rules.minImportQuantity})` };
       }
-      const existingBook = books.find(b => 
-        b.id === item.bookDetails.id || 
+      const existingBook = books.find(b =>
+        b.id === item.bookDetails.id ||
         (b.title.toLowerCase() === item.bookDetails.title.toLowerCase() && b.author.toLowerCase() === item.bookDetails.author.toLowerCase())
       );
       if (existingBook && existingBook.stock >= rules.maxStockBeforeImport) {
@@ -88,13 +88,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const newBooks = [...books];
     items.forEach(item => {
-      const idx = newBooks.findIndex(b => 
-        b.id === item.bookDetails.id || 
+      const idx = newBooks.findIndex(b =>
+        b.id === item.bookDetails.id ||
         (b.title.toLowerCase() === item.bookDetails.title.toLowerCase() && b.author.toLowerCase() === item.bookDetails.author.toLowerCase())
       );
       if (idx > -1) {
         newBooks[idx].stock += item.quantity;
-        newBooks[idx].price = item.bookDetails.price; 
+        newBooks[idx].price = item.bookDetails.price;
       } else {
         const newBook = { ...item.bookDetails, stock: item.quantity };
         newBooks.push(newBook);
@@ -127,7 +127,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     for (const item of items) {
       const book = books.find(b => b.id === item.bookId);
       if (!book) return { success: false, message: 'Sách không tồn tại', totalAmount: 0 };
-      
+
       const stockAfter = book.stock - item.quantity;
       if (stockAfter < 0) {
         return { success: false, message: `Không đủ hàng: Sách "${book.title}" chỉ còn ${book.stock}`, totalAmount: 0 };
@@ -142,7 +142,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const invoiceItems = items.map(item => {
       const idx = newBooks.findIndex(b => b.id === item.bookId);
       const book = newBooks[idx];
-      
+
       newBooks[idx].stock -= item.quantity;
       totalAmount += book.price * item.quantity;
 
@@ -152,7 +152,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         price: book.price // Capture price at time of sale
       };
     });
-    
+
     const newCustomers = [...customers];
     const custIdx = newCustomers.findIndex(c => c.id === customerId);
     if (custIdx > -1) {
@@ -189,7 +189,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       newCustomers[idx].currentDebt -= amount;
     }
     setCustomers(newCustomers);
-    
+
     // Create and save payment receipt to history
     const newReceipt: PaymentReceipt = {
       id: `PT-${Date.now()}`,

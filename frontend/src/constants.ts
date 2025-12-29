@@ -1,4 +1,4 @@
-import { Book, Customer, SystemRules } from './types';
+import type { Book, Customer, SystemRules } from './types';
 
 export const INITIAL_RULES: SystemRules = {
   minImportQuantity: 150,

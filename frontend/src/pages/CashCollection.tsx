@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { DollarSign, AlertCircle, CheckCircle, User, MapPin, Phone, Mail, Save, History, Plus, ShieldAlert } from 'lucide-react';
+import { DollarSign, AlertCircle, CheckCircle, User, MapPin, Phone, Save, History, Plus, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
 
@@ -15,14 +15,14 @@ const CashCollectionHistoryView: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <div className="w-72">
-          <DatePicker 
+          <DatePicker
             value={filterDate}
             onChange={setFilterDate}
             label="Xem lịch sử theo ngày"
           />
         </div>
       </div>
-      
+
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
         {filteredHistory.length > 0 ? (
           <div className="divide-y divide-slate-100">
@@ -30,18 +30,18 @@ const CashCollectionHistoryView: React.FC = () => {
               const customer = getCustomer(receipt.customerId);
               return (
                 <div key={receipt.id} className="flex items-center justify-between p-4 hover:bg-slate-50">
-                   <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-                        <DollarSign size={20} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800">{receipt.id}</p>
-                        <p className="text-xs text-slate-500">
-                          {new Date(receipt.date).toLocaleString('vi-VN')} • KH: {customer?.name || 'N/A'}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
+                      <DollarSign size={20} />
                     </div>
-                    <span className="text-sm font-bold text-purple-700">{receipt.amount.toLocaleString()}đ</span>
+                    <div>
+                      <p className="font-bold text-slate-800">{receipt.id}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(receipt.date).toLocaleString('vi-VN')} • KH: {customer?.name || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-purple-700">{receipt.amount.toLocaleString()}đ</span>
                 </div>
               );
             })}
@@ -114,7 +114,7 @@ const CashCollection: React.FC = () => {
     const result = collectMoney(customerId, amount);
     if (result.success) {
       setSuccess(result.message);
-      
+
       const customerName = getCustomer(customerId)?.name || "Không rõ";
       addNotification({
         type: 'payment',
@@ -132,164 +132,164 @@ const CashCollection: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-       <div className="flex items-center justify-between">
-         <div>
-            <h2 className="text-xl font-bold text-slate-900">Quản lý Thu Tiền (BM4)</h2>
-            <div className="text-sm text-slate-500 mt-1">
-                Dashboard <span className="mx-2">›</span> Thu tiền
-            </div>
-         </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Quản lý Thu Tiền (BM4)</h2>
+          <div className="text-sm text-slate-500 mt-1">
+            Dashboard <span className="mx-2">›</span> Thu tiền
+          </div>
+        </div>
       </div>
 
-       {/* TABS */}
+      {/* TABS */}
       <div className="border-b border-slate-200 flex">
-         <button 
-           onClick={() => setActiveTab('create')}
-           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors
-             ${activeTab === 'create' 
-               ? 'border-blue-600 text-blue-600' 
-               : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-         >
-           <Plus size={16} /> Lập phiếu thu
-         </button>
-         <button 
-           onClick={() => setActiveTab('history')}
-           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors
-             ${activeTab === 'history' 
-               ? 'border-blue-600 text-blue-600' 
-               : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-         >
-           <History size={16} /> Lịch sử thu tiền
-         </button>
+        <button
+          onClick={() => setActiveTab('create')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors
+             ${activeTab === 'create'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <Plus size={16} /> Lập phiếu thu
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors
+             ${activeTab === 'history'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <History size={16} /> Lịch sử thu tiền
+        </button>
       </div>
-      
+
       {activeTab === 'create' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm relative animate-in fade-in duration-300">
           <div className="bg-slate-50 px-8 py-6 border-b border-slate-200 rounded-t-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <DollarSign className="text-blue-600" size={20} />
-                      Thông tin phiếu thu
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">Điền đầy đủ thông tin khách hàng và số tiền cần thu.</p>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <DollarSign className="text-blue-600" size={20} />
+                Thông tin phiếu thu
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">Điền đầy đủ thông tin khách hàng và số tiền cần thu.</p>
+            </div>
+
+            <div className="w-full md:w-72">
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Chọn khách hàng</label>
+              <div className="relative z-10">
+                <select
+                  className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                >
+                  <option value="">-- Tìm khách hàng --</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} - Nợ: {c.currentDebt.toLocaleString()}đ
+                    </option>
+                  ))}
+                </select>
               </div>
-              
-              <div className="w-full md:w-72">
-                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Chọn khách hàng</label>
-                  <div className="relative z-10">
-                      <select
-                          className="w-full pl-3 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                          value={customerId}
-                          onChange={(e) => setCustomerId(e.target.value)}
-                      >
-                          <option value="">-- Tìm khách hàng --</option>
-                          {customers.map(c => (
-                              <option key={c.id} value={c.id}>
-                              {c.name} - Nợ: {c.currentDebt.toLocaleString()}đ
-                              </option>
-                          ))}
-                      </select>
-                  </div>
-              </div>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8">
-              {error && (
+            {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
-                  <AlertCircle size={20} />
-                  <span className="text-sm font-medium">{error}</span>
+                <AlertCircle size={20} />
+                <span className="text-sm font-medium">{error}</span>
               </div>
-              )}
-              
-              {success && (
+            )}
+
+            {success && (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-700 animate-in fade-in slide-in-from-top-2">
-                  <CheckCircle size={20} />
-                  <span className="text-sm font-medium">{success}</span>
+                <CheckCircle size={20} />
+                <span className="text-sm font-medium">{success}</span>
               </div>
-              )}
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  
-                  <div className="relative group z-0">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Họ tên khách hàng</label>
-                      <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                          <User size={18} className="text-slate-400 mr-3" />
-                          <input 
-                              type="text" 
-                              readOnly 
-                              className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
-                              value={selectedCustomer?.name || ''}
-                              placeholder="Tự động điền khi chọn khách hàng"
-                          />
-                      </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
-                  <div className="relative group z-0">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Địa chỉ</label>
-                      <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                          <MapPin size={18} className="text-slate-400 mr-3" />
-                          <input 
-                              type="text" 
-                              readOnly 
-                              className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
-                              value={selectedCustomer?.address || ''}
-                              placeholder="..."
-                          />
-                      </div>
-                  </div>
-
-                  <div className="relative group z-0">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Điện thoại</label>
-                      <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                          <Phone size={18} className="text-slate-400 mr-3" />
-                          <input 
-                              type="text" 
-                              readOnly 
-                              className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
-                              value={selectedCustomer?.phone || ''}
-                              placeholder="..."
-                          />
-                      </div>
-                  </div>
-
-                  <div className="relative group z-0">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền thu</label>
-                      <div className="relative">
-                          <input
-                              type="number"
-                              className="w-full p-2.5 pl-4 pr-12 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-                              value={amount === 0 ? '' : amount}
-                              onChange={(e) => {
-                                  const val = e.target.value;
-                                  setAmount(val === '' ? 0 : parseInt(val));
-                              }}
-                              placeholder="0"
-                          />
-                          <span className="absolute right-4 top-2.5 text-slate-500 font-medium text-sm">VNĐ</span>
-                      </div>
-                      {selectedCustomer && (
-                          <div className="mt-2 flex justify-between text-xs">
-                              <span className="text-slate-500">Nợ hiện tại: <span className="font-semibold text-slate-900">{selectedCustomer.currentDebt.toLocaleString()} đ</span></span>
-                              {rules.usePaymentRule && amount > selectedCustomer.currentDebt && (
-                                  <span className="text-red-500 font-medium flex items-center gap-1">
-                                      <AlertCircle size={12} /> Vi phạm QĐ4: Thu quá số tiền nợ
-                                  </span>
-                              )}
-                          </div>
-                      )}
-                  </div>
-
+              <div className="relative group z-0">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Họ tên khách hàng</label>
+                <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <User size={18} className="text-slate-400 mr-3" />
+                  <input
+                    type="text"
+                    readOnly
+                    className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
+                    value={selectedCustomer?.name || ''}
+                    placeholder="Tự động điền khi chọn khách hàng"
+                  />
+                </div>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                  <button
-                      type="submit"
-                      className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold text-sm shadow-lg shadow-blue-500/30 transition-transform active:scale-95"
-                  >
-                      <Save size={18} />
-                      Lập phiếu thu
-                  </button>
+              <div className="relative group z-0">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Địa chỉ</label>
+                <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <MapPin size={18} className="text-slate-400 mr-3" />
+                  <input
+                    type="text"
+                    readOnly
+                    className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
+                    value={selectedCustomer?.address || ''}
+                    placeholder="..."
+                  />
+                </div>
               </div>
+
+              <div className="relative group z-0">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Điện thoại</label>
+                <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <Phone size={18} className="text-slate-400 mr-3" />
+                  <input
+                    type="text"
+                    readOnly
+                    className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
+                    value={selectedCustomer?.phone || ''}
+                    placeholder="..."
+                  />
+                </div>
+              </div>
+
+              <div className="relative group z-0">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền thu</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    className="w-full p-2.5 pl-4 pr-12 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+                    value={amount === 0 ? '' : amount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAmount(val === '' ? 0 : parseInt(val));
+                    }}
+                    placeholder="0"
+                  />
+                  <span className="absolute right-4 top-2.5 text-slate-500 font-medium text-sm">VNĐ</span>
+                </div>
+                {selectedCustomer && (
+                  <div className="mt-2 flex justify-between text-xs">
+                    <span className="text-slate-500">Nợ hiện tại: <span className="font-semibold text-slate-900">{selectedCustomer.currentDebt.toLocaleString()} đ</span></span>
+                    {rules.usePaymentRule && amount > selectedCustomer.currentDebt && (
+                      <span className="text-red-500 font-medium flex items-center gap-1">
+                        <AlertCircle size={12} /> Vi phạm QĐ4: Thu quá số tiền nợ
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold text-sm shadow-lg shadow-blue-500/30 transition-transform active:scale-95"
+              >
+                <Save size={18} />
+                Lập phiếu thu
+              </button>
+            </div>
           </form>
         </div>
       )}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
 import { DollarSign, BookOpen, Users, TrendingUp, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
   <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between">
@@ -41,31 +41,31 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Tổng sách tồn" 
-          value={totalStock.toLocaleString()} 
-          icon={BookOpen} 
-          trend={12} 
+        <StatCard
+          title="Tổng sách tồn"
+          value={totalStock.toLocaleString()}
+          icon={BookOpen}
+          trend={12}
           color="bg-blue-500"
         />
-        <StatCard 
-          title="Tổng công nợ" 
-          value={`${totalDebt.toLocaleString()}đ`} 
-          icon={DollarSign} 
-          trend={-5} 
+        <StatCard
+          title="Tổng công nợ"
+          value={`${totalDebt.toLocaleString()}đ`}
+          icon={DollarSign}
+          trend={-5}
           color="bg-indigo-500"
         />
-        <StatCard 
-          title="Khách hàng" 
-          value={customers.length} 
-          icon={Users} 
-          trend={8} 
+        <StatCard
+          title="Khách hàng"
+          value={customers.length}
+          icon={Users}
+          trend={8}
           color="bg-purple-500"
         />
-        <StatCard 
-          title="Sắp hết hàng" 
-          value={lowStockBooks} 
-          icon={AlertTriangle} 
+        <StatCard
+          title="Sắp hết hàng"
+          value={lowStockBooks}
+          icon={AlertTriangle}
           color="bg-amber-500"
         />
       </div>
@@ -78,34 +78,34 @@ const Dashboard: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Bar dataKey="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-         {/* Quick Actions / Recent */}
-         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        {/* Quick Actions / Recent */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Sách bán chạy</h3>
           <div className="space-y-4">
-             {books.slice(0, 4).map((book, idx) => (
-               <div key={book.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
-                  <div className="w-12 h-16 bg-slate-200 rounded overflow-hidden flex-shrink-0">
-                    <img src={book.imageUrl} alt={book.title} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">{book.title}</p>
-                    <p className="text-sm text-slate-500">{book.author}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-blue-600">{book.price.toLocaleString()}đ</p>
-                    <p className="text-xs text-slate-400">Còn: {book.stock}</p>
-                  </div>
-               </div>
-             ))}
+            {books.slice(0, 4).map((book) => (
+              <div key={book.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                <div className="w-12 h-16 bg-slate-200 rounded overflow-hidden flex-shrink-0">
+                  <img src={book.imageUrl} alt={book.title} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-900 truncate">{book.title}</p>
+                  <p className="text-sm text-slate-500">{book.author}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-blue-600">{book.price.toLocaleString()}đ</p>
+                  <p className="text-xs text-slate-400">Còn: {book.stock}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
