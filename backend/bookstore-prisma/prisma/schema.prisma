@@ -76,6 +76,7 @@ model Sach {
   giaNhap     Decimal  @db.Decimal(15, 2) @map("GiaNhap")
   giaBanLe    Decimal  @db.Decimal(15, 2) @map("GiaBanLe")
   soLuongTon  Int?     @default(0) @map("SoLuongTon")
+  tonKhoToiThieu Int?  @default(10) @map("TonKhoToiThieu")
   moTa        String?  @db.Text @map("MoTa")
   barcode     String?  @db.VarChar(100) @map("Barcode")
 

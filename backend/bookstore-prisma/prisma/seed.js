@@ -34,6 +34,8 @@ async function main() {
 
   // 4. Nhân viên (mật khẩu được hash)
   const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedPassword2 = await bcrypt.hash('warehouse123', 10);
+  
   const nv = await prisma.nhanVien.create({
     data: {
       tenDangNhap: 'admin',
@@ -41,6 +43,18 @@ async function main() {
       hoTen: 'Nguyễn Văn Quản Lý',
       email: 'admin@bookstore.com',
       vaiTro: 'QUAN_LY',
+      trangThai: true
+    }
+  });
+
+  // Tạo thêm user cho warehouse
+  const nv_warehouse = await prisma.nhanVien.create({
+    data: {
+      tenDangNhap: 'warehouse',
+      matKhau: hashedPassword2,
+      hoTen: 'Trần Văn Thủ Kho',
+      email: 'warehouse@bookstore.com',
+      vaiTro: 'THU_KHO',
       trangThai: true
     }
   });

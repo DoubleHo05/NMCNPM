@@ -1,5 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Provider } from 'react-redux';
 import { StoreProvider } from './context/StoreContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
@@ -16,11 +17,22 @@ import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
 import UserManagement from './pages/UserManagement';
 
+// Import Admin pages
+import UserManagementAdmin from './pages/admin/UserManagement';
+import RulesConfigPage from './pages/admin/RulesConfig';
+
+// Import Warehouse pages
+import WarehouseImportPage from './pages/warehouse/WarehouseImport';
+import WarehouseListPage from './pages/warehouse/WarehouseList';
+
 // Import new authentication pages
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AuthLayout from './components/AuthLayout';
+
+// Import Redux store
+import { store } from './store/store';
 
 // Import utils
 import './utils/time';
@@ -64,6 +76,26 @@ const AppContent: React.FC = () => {
                     <UserManagement />
                   </ProtectedRoute>
                 } />
+                <Route path="/admin/users" element={
+                  <ProtectedRoute allowedRoles={['QUAN_LY']}>
+                    <UserManagementAdmin />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/rules" element={
+                  <ProtectedRoute allowedRoles={['QUAN_LY']}>
+                    <RulesConfigPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/warehouse/import" element={
+                  <ProtectedRoute allowedRoles={['QUAN_LY', 'THU_KHO']}>
+                    <WarehouseImportPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/warehouse/list" element={
+                  <ProtectedRoute allowedRoles={['QUAN_LY', 'THU_KHO']}>
+                    <WarehouseListPage />
+                  </ProtectedRoute>
+                } />
                 <Route path="/account" element={<AccountSettings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
@@ -92,13 +124,15 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
-      </StoreProvider>
-    </AuthProvider>
+    <Provider store={store}>
+      <AuthProvider>
+        <StoreProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </StoreProvider>
+      </AuthProvider>
+    </Provider>
   );
 };
 
