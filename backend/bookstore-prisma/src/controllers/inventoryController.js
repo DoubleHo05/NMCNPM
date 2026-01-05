@@ -104,7 +104,46 @@ const updateStock = async (req, res) => {
     }
 };
 
+const getImportHistory = async (req, res) => {
+    try {
+        const history = await prisma.phieuNhapSach.findMany({
+            orderBy: {
+                ngayNhap: 'desc',
+            },
+            include: {
+                nhanVien: {
+                    select: {
+                        hoTen: true,
+                    },
+                },
+                chiTiet: {
+                    include: {
+                        sach: {
+                            select: {
+                                tenSach: true,
+                                isbn: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            data: history,
+        });
+    } catch (error) {
+        console.error('Get import history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi lấy lịch sử nhập hàng',
+        });
+    }
+};
+
 module.exports = {
     importGoods,
     updateStock,
+    getImportHistory,
 };

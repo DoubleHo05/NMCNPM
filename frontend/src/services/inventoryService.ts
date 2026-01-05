@@ -30,4 +30,10 @@ export const inventoryService = {
             body: JSON.stringify(data),
         });
     },
+
+    getImportHistory: async () => {
+        return await apiRequest('/inventory/history', {
+            method: 'GET',
+        });
+    },
 };

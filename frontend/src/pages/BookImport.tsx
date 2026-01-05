@@ -14,13 +14,34 @@ interface ImportItem {
 }
 
 const ImportHistoryView: React.FC = () => {
-  const { importHistory, getBook } = useStore();
   const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
-  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [expandedTicketId, setExpandedTicketId] = useState<number | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filteredHistory = importHistory.filter(ticket => ticket.date.startsWith(filterDate));
+  React.useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const { inventoryService } = await import('../services/inventoryService');
+        const res: any = await inventoryService.getImportHistory();
+        if (res.success) {
+          setHistory(res.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
-  const toggleExpand = (ticketId: string) => {
+  const filteredHistory = history.filter(ticket =>
+    ticket.ngayNhap && ticket.ngayNhap.startsWith(filterDate)
+  );
+
+  const toggleExpand = (ticketId: number) => {
     setExpandedTicketId(expandedTicketId === ticketId ? null : ticketId);
   };
 
@@ -37,30 +58,36 @@ const ImportHistoryView: React.FC = () => {
       </div>
 
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
-        {filteredHistory.length > 0 ? (
+        {loading ? (
+          <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>
+        ) : filteredHistory.length > 0 ? (
           <div className="divide-y divide-slate-100">
             {filteredHistory.map(ticket => {
-              const totalQuantity = ticket.items.reduce((sum, item) => sum + item.quantity, 0);
-              const isExpanded = expandedTicketId === ticket.id;
+              const totalQuantity = ticket.chiTiet.reduce((sum: number, item: any) => sum + item.soLuongNhap, 0);
+              const isExpanded = expandedTicketId === ticket.maPhieuNhap;
 
               return (
-                <div key={ticket.id}>
+                <div key={ticket.maPhieuNhap}>
                   <div
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
-                    onClick={() => toggleExpand(ticket.id)}
+                    onClick={() => toggleExpand(ticket.maPhieuNhap)}
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
                         <FilePlus size={20} />
                       </div>
                       <div>
-                        <p className="font-bold text-slate-800">{ticket.id}</p>
+                        <p className="font-bold text-slate-800">PN #{ticket.maPhieuNhap}</p>
                         <p className="text-xs text-slate-500">
-                          {new Date(ticket.date).toLocaleString('vi-VN')} • {ticket.items.length} đầu sách • Tổng {totalQuantity} cuốn
+                          {new Date(ticket.ngayNhap).toLocaleString('vi-VN')} • Người nhập: {ticket.nhanVien?.hoTen}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
+                      <div className="text-right mr-4">
+                        <p className="font-semibold text-blue-600">{totalQuantity} cuốn</p>
+                        <p className="text-xs text-slate-500 font-medium">{Number(ticket.tongTienNhap).toLocaleString()}đ</p>
+                      </div>
                       <ChevronDown size={20} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
@@ -69,12 +96,17 @@ const ImportHistoryView: React.FC = () => {
                     <div className="bg-slate-50 p-4 border-t border-slate-200 animate-in fade-in duration-200">
                       <h4 className="font-semibold text-sm text-slate-600 mb-2">Chi tiết phiếu nhập:</h4>
                       <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg bg-white">
-                        {ticket.items.map((item, index) => {
-                          const book = getBook(item.bookId);
+                        {ticket.chiTiet.map((item: any, index: number) => {
                           return (
                             <li key={index} className="flex items-center justify-between p-3 text-sm">
-                              <span className="font-medium text-slate-800">{book?.title || 'Sách không còn tồn tại'}</span>
-                              <span className="text-slate-500">Số lượng: <b className="text-blue-600">{item.quantity}</b></span>
+                              <div>
+                                <span className="font-medium text-slate-800 block">{item.sach?.tenSach || 'Sách không xác định'}</span>
+                                <span className="text-xs text-slate-400">ISBN: {item.sach?.isbn}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-slate-500 block">SL: <b className="text-blue-600">{item.soLuongNhap}</b></span>
+                                <span className="text-xs text-slate-500">{Number(item.giaNhap).toLocaleString()}đ/cuốn</span>
+                              </div>
                             </li>
                           );
                         })}
