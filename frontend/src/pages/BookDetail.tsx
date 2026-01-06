@@ -65,7 +65,7 @@ const BookDetail: React.FC = () => {
                      <div>Nhà cung cấp: <span className="font-medium text-blue-600 cursor-pointer">{book.supplier || 'Đang cập nhật'}</span></div>
                      <div>Tác giả: <span className="font-medium text-slate-900">{book.author}</span></div>
                      <div>Nhà xuất bản: <span className="font-medium text-slate-900">{book.publisher}</span></div>
-                     <div>Hình thức bìa: <span className="font-medium text-slate-900">{book.coverForm || 'Bìa mềm'}</span></div>
+                     <div>Nhà xuất bản: <span className="font-medium text-slate-900">{book.publisher}</span></div>
                   </div>
 
                   <div className="flex items-center gap-3 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-100 w-fit">
@@ -110,10 +110,7 @@ const BookDetail: React.FC = () => {
                               <td className="w-40 text-slate-500">Số trang</td>
                               <td className="font-medium text-slate-900">{book.pages || 'N/A'}</td>
                            </tr>
-                           <tr className="flex py-2">
-                              <td className="w-40 text-slate-500">Hình thức</td>
-                              <td className="font-medium text-slate-900">{book.coverForm || 'Bìa Mềm'}</td>
-                           </tr>
+
                            <tr className="flex py-2">
                               <td className="w-40 text-slate-500">Tồn kho</td>
                               <td className="font-bold text-green-600">{book.stock}</td>

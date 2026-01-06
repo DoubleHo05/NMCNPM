@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const settingRoutes = require('./routes/settingRoutes');
+const bookRoutes = require('./routes/bookRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -15,8 +16,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.get('/', (req, res) => {
   res.json({
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/books', bookRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

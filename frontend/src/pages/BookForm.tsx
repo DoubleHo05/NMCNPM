@@ -22,7 +22,8 @@ const BookForm: React.FC = () => {
         imageUrl: '',
         weight: 0,
         pages: 0,
-        dimensions: ''
+        dimensions: '',
+        description: ''
     };
 
     const [formData, setFormData] = useState<Book>(initialFormState);
@@ -171,8 +172,17 @@ const BookForm: React.FC = () => {
                                     type="text"
                                     className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                                     placeholder="VD: 20 x 15 x 2 cm"
-                                    value={formData.dimensions || ''}
                                     onChange={e => handleChange('dimensions', e.target.value)}
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Mô tả sản phẩm</label>
+                                <textarea
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none min-h-[120px]"
+                                    placeholder="Nhập mô tả chi tiết về sách..."
+                                    value={formData.description || ''}
+                                    onChange={e => handleChange('description', e.target.value)}
                                 />
                             </div>
                         </div>

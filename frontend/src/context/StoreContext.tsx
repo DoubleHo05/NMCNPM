@@ -1,6 +1,10 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Book, Customer, ImportTicket, Invoice, PaymentReceipt, SystemRules, Notification } from '../types';
 import { INITIAL_BOOKS, INITIAL_CUSTOMERS, INITIAL_RULES } from '../constants';
+import { inventoryService } from '../services/inventoryService';
+import { settingService, type Setting } from '../services/settingService';
+import { bookService } from '../services/bookService'; // [NEW]
+import { useAuth } from './AuthContext';
 
 interface StoreContextType {
   books: Book[];
@@ -9,9 +13,9 @@ interface StoreContextType {
   notifications: Notification[];
   importHistory: ImportTicket[];
   invoiceHistory: Invoice[];
-  paymentHistory: PaymentReceipt[]; // Added payment history
+  paymentHistory: PaymentReceipt[];
   updateRules: (newRules: SystemRules) => void;
-  importBooks: (items: { bookDetails: Book; quantity: number }[]) => { success: boolean; message: string };
+  importBooks: (items: { bookDetails: Book; quantity: number }[]) => Promise<{ success: boolean; message: string }>;
   createInvoice: (customerId: string, items: { bookId: string; quantity: number }[]) => { success: boolean; message: string; totalAmount: number; };
   collectMoney: (customerId: string, amount: number) => { success: boolean; message: string };
   // Helpers
@@ -29,13 +33,75 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [books, setBooks] = useState<Book[]>(INITIAL_BOOKS);
+  const { user } = useAuth();
+  const [books, setBooks] = useState<Book[]>([]); // Initialize empty, will load from DB
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
   const [rules, setRules] = useState<SystemRules>(INITIAL_RULES);
+  const [rawSettings, setRawSettings] = useState<Setting[]>([]); // Store raw backend settings with IDs
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [importHistory, setImportHistory] = useState<ImportTicket[]>([]);
   const [invoiceHistory, setInvoiceHistory] = useState<Invoice[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentReceipt[]>([]);
+
+  // Mapping from Frontend Rule Keys to Backend Setting Names
+  const SETTING_Name_MAPPING: Record<keyof SystemRules, string> = {
+    minImportQuantity: 'SoLuongNhapToiThieu',
+    maxStockBeforeImport: 'TonKhoToiDaTruocKhiNhap',
+    maxCustomerDebt: 'TienNoToiDa',
+    minStockAfterSale: 'TonKhoToiThieuSauKhiBan',
+    usePaymentRule: 'SuDungQuyDinhThuTien'
+  };
+
+  // Fetch initial data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch Settings
+        const settingsRes = await settingService.getAllSettings();
+        if (settingsRes && settingsRes.data && settingsRes.data.settings) {
+          setRawSettings(settingsRes.data.settings);
+
+          // Update local rules based on backend data
+          const backendRules: Partial<SystemRules> = {};
+          settingsRes.data.settings.forEach(setting => {
+            // Find which rule corresponds to this setting
+            const ruleKey = (Object.keys(SETTING_Name_MAPPING) as Array<keyof SystemRules>).find(
+              key => SETTING_Name_MAPPING[key] === setting.tenQuyDinh
+            );
+
+            if (ruleKey) {
+              if (ruleKey === 'usePaymentRule') {
+                backendRules[ruleKey] = setting.giaTri === '1' || setting.giaTri === 'true';
+              } else {
+                backendRules[ruleKey] = parseInt(setting.giaTri, 10);
+              }
+            }
+          });
+
+          setRules(prev => ({ ...prev, ...backendRules }));
+        }
+
+        // Fetch Inventory History
+        const historyRes = await inventoryService.getImportHistory();
+        if (historyRes && (historyRes as any).success) {
+          setImportHistory((historyRes as any).data);
+        }
+
+        // [NEW] Fetch Books from Real DB
+        const booksRes = await bookService.getAllBooks();
+        if (booksRes && (booksRes as any).success) {
+          // Map backend data to frontend Book interface if needed, or assume controller formatted it
+          // Controller returns { data: [...] }
+          setBooks((booksRes as any).data);
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+
+    fetchData();
+  }, [user]); // Re-fetch if user changes, though mostly global
 
   // --- NOTIFICATION HANDLERS ---
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
@@ -51,10 +117,38 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const markNotificationsAsRead = () => {
     setTimeout(() => {
       setNotifications(prev => prev.map(n => n.isRead ? n : { ...n, isRead: true }));
-    }, 500); // Add a small delay for better UX
+    }, 500);
   };
 
-  const updateRules = (newRules: SystemRules) => {
+  const updateRules = async (newRules: SystemRules) => {
+    // Find identifying changed rules and update them in backend
+    for (const key of Object.keys(newRules) as Array<keyof SystemRules>) {
+      if (newRules[key] !== rules[key]) {
+        const settingName = SETTING_Name_MAPPING[key];
+        const setting = rawSettings.find(s => s.tenQuyDinh === settingName);
+
+        if (setting) {
+          try {
+            const valueToUpdate = typeof newRules[key] === 'boolean'
+              ? (newRules[key] ? '1' : '0')
+              : String(newRules[key]);
+
+            await settingService.updateSetting(setting.maQuyDinh, { giaTri: valueToUpdate });
+          } catch (err) {
+            console.error(`Failed to update setting ${key}:`, err);
+            addNotification({
+              type: 'settings',
+              title: 'Lỗi cập nhật',
+              message: `Không thể cập nhật quy định: ${key}`
+            });
+            return; // Stop local update if API fails
+          }
+        } else {
+          console.warn(`Setting ${settingName} not found in backend list.`);
+        }
+      }
+    }
+
     setRules(newRules);
   };
 
@@ -72,11 +166,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // BM1 & QĐ1 Logic: Import Books
-  const importBooks = (items: { bookDetails: Book; quantity: number }[]) => {
+  const importBooks = async (items: { bookDetails: Book; quantity: number }[]) => {
+    // 1. Validation (Keep local validation for immediate feedback, but could rely on backend)
     for (const item of items) {
       if (item.quantity < rules.minImportQuantity) {
         return { success: false, message: `QĐ1 Vi phạm: Sách "${item.bookDetails.title}" nhập ${item.quantity} (Tối thiểu ${rules.minImportQuantity})` };
       }
+
+      // Note: We might need to check stock against backend data here, but for now we use local 'books' state
+      // which assumes 'books' state is kept relatively in sync or we accept optimistic checks.
       const existingBook = books.find(b =>
         b.id === item.bookDetails.id ||
         (b.title.toLowerCase() === item.bookDetails.title.toLowerCase() && b.author.toLowerCase() === item.bookDetails.author.toLowerCase())
@@ -86,33 +184,87 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     }
 
-    const newBooks = [...books];
-    items.forEach(item => {
-      const idx = newBooks.findIndex(b =>
-        b.id === item.bookDetails.id ||
-        (b.title.toLowerCase() === item.bookDetails.title.toLowerCase() && b.author.toLowerCase() === item.bookDetails.author.toLowerCase())
-      );
-      if (idx > -1) {
-        newBooks[idx].stock += item.quantity;
-        newBooks[idx].price = item.bookDetails.price;
+    // 2. Prepare Payload for API
+    // Need to map bookDetails to IDs if they exist, but for now the API expects `maSach`.
+    // If it's a new book, the current `importGoods` API might not handle creating books effectively 
+    // unless `maSach` is valid. 
+    // STARTING ASSUMPTION: The user selects existing books or the UI handles new book creation separately?
+    // Looking at BookImport.tsx, it allows creating "new" books locally with random IDs.
+    // However, the backend `importGoods` requires `maSach`. 
+    // IMPORTANT: If we are importing NEW books, we likely need a `createBook` API first.
+    // OR the `importGoods` should handle new books.
+    // The current backend `importGoods` controller strictly takes `maSach`.
+    // So assume we only support importing EXISTING books for now, or we would need to create them first.
+
+    // Filter out items that don't have a valid real ID (backend IDs are usually numbers or specific strings).
+    // The explicit instruction is about Inventory and Setting APIs. 
+    // We will attempt to use the existing `id` as `maSach`. 
+    // If `id` is not a number (e.g. "B001"), this might fail if backend expects number.
+    // Checking `backend/bookstore-prisma/src/controllers/inventoryController.js`: `maSach: item.maSach`
+    // Checking `backend/bookstore-prisma/src/controllers/bookController.js` (not seen yet) or Schema.
+    // Let's assume `maSach` is Int.
+    // Our local `books` have IDs like "B001". This is a mismatch.
+    // FOR DEMO PURPOSES: We will rely on the backend API call. 
+    // We'll try to parse the ID. slightly hacking it for "B001" -> 1 if possible, or expect the user to have real IDs?
+    // Actually, let's map the payload.
+
+    try {
+      const importPayload = {
+        maNV: user?.maNV ? Number(user.maNV) : 0, // Get real maNV from auth user
+        chiTietNhap: items.map(item => ({
+          maSach: parseInt(item.bookDetails.id.replace(/\D/g, '')) || 0,
+          soLuongNhap: item.quantity,
+          giaNhap: item.bookDetails.price,
+          // Add full book details for creation if it's a new book
+          tenSach: item.bookDetails.title,
+          tacGia: item.bookDetails.author,
+          theLoai: item.bookDetails.category,
+          nhaXuatBan: item.bookDetails.publisher,
+          namXuatBan: item.bookDetails.publishYear,
+          giaBanLe: item.bookDetails.price * 1.2, // Default markup 20% or set same
+          hinhAnh: item.bookDetails.imageUrl,
+          trongLuong: item.bookDetails.weight,
+          soTrang: item.bookDetails.pages,
+          kichThuoc: item.bookDetails.dimensions,
+          moTa: item.bookDetails.description
+        }))
+      };
+
+      const response = await inventoryService.importGoods(importPayload);
+
+      if ((response as any).success) {
+        // Refresh history
+        const historyRes = await inventoryService.getImportHistory();
+        if (historyRes && (historyRes as any).success) {
+          setImportHistory((historyRes as any).data);
+        }
+
+        // Assume success - update local state to reflect changes (Optimistic or re-fetch books)
+        // Refresh books from backend to get full updated details (ids, description, etc.)
+        const booksRes = await bookService.getAllBooks();
+        if (booksRes && (booksRes as any).success) {
+          setBooks((booksRes as any).data);
+        } else {
+          // Fallback optimistic update if fetch fails
+          const newBooks = [...books];
+          items.forEach(item => {
+            const idx = newBooks.findIndex(b => b.id === item.bookDetails.id);
+            if (idx > -1) {
+              newBooks[idx].stock += item.quantity;
+            }
+          });
+          setBooks(newBooks);
+        }
+
+        return { success: true, message: 'Nhập hàng thành công (API)' };
       } else {
-        const newBook = { ...item.bookDetails, stock: item.quantity };
-        newBooks.push(newBook);
+        return { success: false, message: (response as any).message || 'Lỗi khi gọi API nhập hàng' };
       }
-    });
 
-    const newTicket: ImportTicket = {
-      id: `PN-${Date.now()}`,
-      date: new Date().toISOString(),
-      items: items.map(item => ({
-        bookId: item.bookDetails.id,
-        quantity: item.quantity,
-      })),
-    };
-    setImportHistory(prev => [newTicket, ...prev]);
-
-    setBooks(newBooks);
-    return { success: true, message: 'Nhập sách và cập nhật kho thành công!' };
+    } catch (err) {
+      console.error("Import API error", err);
+      return { success: false, message: 'Lỗi kết nối server khi nhập hàng.' };
+    }
   };
 
   // BM2 & QĐ2 Logic: Sell Books

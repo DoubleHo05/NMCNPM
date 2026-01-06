@@ -138,6 +138,22 @@ const BookImport: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("File quá lớn (Max 5MB)");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleModalChange('imageUrl', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Show access denied if user doesn't have permission
   if (!canImportBooks) {
@@ -212,7 +228,7 @@ const BookImport: React.FC = () => {
     setItems(items.filter(i => i.id !== itemId));
   };
 
-  const handleSaveTicket = () => {
+  const handleSaveTicket = async () => {
     setError(null);
     setSuccess(null);
     if (items.length === 0) {
@@ -221,7 +237,7 @@ const BookImport: React.FC = () => {
     }
 
     const payload = items.map(i => ({ bookDetails: i.bookDetails, quantity: i.quantity }));
-    const result = importBooks(payload);
+    const result = await importBooks(payload);
 
     if (result.success) {
       setSuccess(result.message);
@@ -359,9 +375,10 @@ const BookImport: React.FC = () => {
       )}
 
       {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl my-8 animate-in fade-in zoom-in duration-200">
-            <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between rounded-t-xl sticky top-0 z-10">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-slate-100 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col my-8 animate-in fade-in zoom-in duration-200 overflow-hidden">
+            {/* Header - Fixed */}
+            <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-none z-10">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Chi tiết sách nhập</h3>
                 <p className="text-sm text-slate-500">Điền thông tin sách để thêm vào phiếu nhập</p>
@@ -371,86 +388,121 @@ const BookImport: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAddBookToTicket} className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 className="font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-3">Thông tin chung</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Tên sách <span className="text-red-500">*</span></label>
-                        <input type="text" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên sách..." value={currentBook.title} onChange={e => handleModalChange('title', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Tác giả <span className="text-red-500">*</span></label>
-                        <input type="text" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Tên tác giả" value={currentBook.author} onChange={e => handleModalChange('author', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Thể loại</label>
-                        <select className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" value={currentBook.category} onChange={e => handleModalChange('category', e.target.value)}>
-                          <option value="Văn học">Văn học</option>
-                          <option value="Kinh tế">Kinh tế</option>
-                          <option value="Thiếu nhi">Thiếu nhi</option>
-                          <option value="Kỹ năng">Kỹ năng</option>
-                          <option value="Giáo khoa">Giáo khoa</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Năm xuất bản</label>
-                        <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" value={currentBook.publishYear === 0 ? '' : currentBook.publishYear} onChange={e => handleModalChange('publishYear', e.target.value === '' ? 0 : parseInt(e.target.value))} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Nhà xuất bản</label>
-                        <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên NXB" value={currentBook.publisher} onChange={e => handleModalChange('publisher', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Trọng lượng (g)</label>
-                        <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 300" value={currentBook.weight || ''} onChange={e => handleModalChange('weight', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Số trang</label>
-                        <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 250" value={currentBook.pages || ''} onChange={e => handleModalChange('pages', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Kích thước</label>
-                        <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 20 x 15 x 2 cm" value={currentBook.dimensions || ''} onChange={e => handleModalChange('dimensions', e.target.value)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-6">
-                  <div className="bg-white p-6 rounded-xl border-2 border-blue-100 shadow-sm">
-                    <h3 className="font-semibold text-blue-700 mb-4 border-b border-blue-50 pb-3">Dữ liệu nhập kho</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Giá nhập/bìa (VNĐ) <span className="text-red-500">*</span></label>
-                        <input type="number" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900" value={currentBook.price === 0 ? '' : currentBook.price} onChange={e => handleModalChange('price', e.target.value === '' ? 0 : parseInt(e.target.value))} placeholder="0" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Số lượng nhập <span className="text-red-500">*</span></label>
-                        <div className="flex items-center justify-center border border-slate-300 rounded-lg overflow-hidden w-full">
-                          <button type="button" onClick={() => setCurrentQuantity(prev => Math.max(0, prev - 1))} className="px-4 py-3 bg-slate-50 hover:bg-slate-100 border-r border-slate-300 text-slate-600 transition-colors active:bg-slate-200"><Minus size={20} /></button>
-                          <input type="number" required className="w-full p-3 text-center bg-white text-xl focus:outline-none font-bold text-blue-600" value={currentQuantity === 0 ? '' : currentQuantity} onChange={e => setCurrentQuantity(e.target.value === '' ? 0 : parseInt(e.target.value))} placeholder="0" />
-                          <button type="button" onClick={() => setCurrentQuantity(prev => prev + 1)} className="px-4 py-3 bg-slate-50 hover:bg-slate-100 border-l border-slate-300 text-slate-600 transition-colors active:bg-slate-200"><Plus size={20} /></button>
+            <form onSubmit={handleAddBookToTicket} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto flex-1 p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                      <h3 className="font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-3">Thông tin chung</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Tên sách <span className="text-red-500">*</span></label>
+                          <input type="text" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên sách..." value={currentBook.title} onChange={e => handleModalChange('title', e.target.value)} />
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">Tối thiểu theo quy định: {rules.minImportQuantity}</p>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Tác giả <span className="text-red-500">*</span></label>
+                          <input type="text" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Tên tác giả" value={currentBook.author} onChange={e => handleModalChange('author', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Thể loại</label>
+                          <select className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" value={currentBook.category} onChange={e => handleModalChange('category', e.target.value)}>
+                            <option value="Văn học">Văn học</option>
+                            <option value="Kinh tế">Kinh tế</option>
+                            <option value="Thiếu nhi">Thiếu nhi</option>
+                            <option value="Kỹ năng">Kỹ năng</option>
+                            <option value="Giáo khoa">Giáo khoa</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Năm xuất bản</label>
+                          <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" value={currentBook.publishYear === 0 ? '' : currentBook.publishYear} onChange={e => handleModalChange('publishYear', e.target.value === '' ? 0 : parseInt(e.target.value))} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Nhà xuất bản</label>
+                          <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nhập tên NXB" value={currentBook.publisher} onChange={e => handleModalChange('publisher', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Trọng lượng (g)</label>
+                          <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 300" value={currentBook.weight || ''} onChange={e => handleModalChange('weight', parseInt(e.target.value) || 0)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Số trang</label>
+                          <input type="number" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 250" value={currentBook.pages || ''} onChange={e => handleModalChange('pages', parseInt(e.target.value) || 0)} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Kích thước</label>
+                          <input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: 20 x 15 x 2 cm" value={currentBook.dimensions || ''} onChange={e => handleModalChange('dimensions', e.target.value)} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Mô tả sản phẩm</label>
+                          <textarea
+                            rows={4}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                            placeholder="Nhập mô tả chi tiết cho sách..."
+                            value={currentBook.description || ''}
+                            onChange={e => handleModalChange('description', e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 className="font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-3">Hình ảnh</h3>
-                    <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-100 transition-colors cursor-pointer group">
-                      {currentBook.imageUrl ? (
-                        <div className="relative"><img src={currentBook.imageUrl} alt="Preview" className="w-full h-40 object-contain rounded mb-2" /><button type="button" onClick={() => handleModalChange('imageUrl', '')} className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"><X size={14} /></button></div>
-                      ) : (
-                        <div className="py-2"><div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform"><UploadCloud size={20} /></div><p className="text-xs font-medium text-slate-700">Chọn ảnh</p></div>
-                      )}
+                  <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-xl border-2 border-blue-100 shadow-sm">
+                      <h3 className="font-semibold text-blue-700 mb-4 border-b border-blue-50 pb-3">Dữ liệu nhập kho</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Giá nhập/bìa (VNĐ) <span className="text-red-500">*</span></label>
+                          <input type="number" required className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900" value={currentBook.price === 0 ? '' : currentBook.price} onChange={e => handleModalChange('price', e.target.value === '' ? 0 : parseInt(e.target.value))} placeholder="0" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Số lượng nhập <span className="text-red-500">*</span></label>
+                          <div className="flex items-center justify-center border border-slate-300 rounded-lg overflow-hidden w-full">
+                            <button type="button" onClick={() => setCurrentQuantity(prev => Math.max(0, prev - 1))} className="px-4 py-3 bg-slate-50 hover:bg-slate-100 border-r border-slate-300 text-slate-600 transition-colors active:bg-slate-200"><Minus size={20} /></button>
+                            <input type="number" required className="w-full p-3 text-center bg-white text-xl focus:outline-none font-bold text-blue-600" value={currentQuantity === 0 ? '' : currentQuantity} onChange={e => setCurrentQuantity(e.target.value === '' ? 0 : parseInt(e.target.value))} placeholder="0" />
+                            <button type="button" onClick={() => setCurrentQuantity(prev => prev + 1)} className="px-4 py-3 bg-slate-50 hover:bg-slate-100 border-l border-slate-300 text-slate-600 transition-colors active:bg-slate-200"><Plus size={20} /></button>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">Tối thiểu theo quy định: {rules.minImportQuantity}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-4"><input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Hoặc nhập URL ảnh..." value={currentBook.imageUrl || ''} onChange={e => handleModalChange('imageUrl', e.target.value)} /></div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                      <h3 className="font-semibold text-slate-900 mb-4 border-b border-slate-100 pb-3">Hình ảnh</h3>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-100 transition-colors cursor-pointer group"
+                      >
+                        {currentBook.imageUrl ? (
+                          <div className="relative" onClick={(e) => e.stopPropagation()}>
+                            <img
+                              src={currentBook.imageUrl}
+                              alt="Preview"
+                              className="w-full h-40 object-contain rounded mb-2"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null; // Prevent infinite loop
+                                e.currentTarget.src = 'https://via.placeholder.com/300x200?text=Lỗi+Ảnh'; // Fallback image
+                              }}
+                            />
+                            <button type="button" onClick={() => handleModalChange('imageUrl', '')} className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <div className="py-2"><div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform"><UploadCloud size={20} /></div><p className="text-xs font-medium text-slate-700">Chọn ảnh</p></div>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                      />
+                      <div className="mt-4"><input type="text" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Hoặc nhập URL ảnh..." value={currentBook.imageUrl || ''} onChange={e => handleModalChange('imageUrl', e.target.value)} /></div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-slate-200 bg-slate-100 sticky bottom-0">
+
+              {/* Footer - Fixed at bottom of modal card */}
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100 rounded-b-xl flex-none">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors">Hủy bỏ</button>
                 <button type="submit" className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-colors">Thêm vào phiếu</button>
               </div>
