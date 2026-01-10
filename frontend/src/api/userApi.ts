@@ -16,7 +16,10 @@ export const userApi = {
       const mappedUsers = backendData.data.users.map((user: any) => ({
         id: String(user.maNV),
         username: user.tenDangNhap || '',
+        fullName: user.hoTen || '',
         email: user.email || '',
+        phone: user.soDienThoai || '',
+        address: user.diaChi || '',
         role: roleMap[user.vaiTro] || 'user',
         isActive: user.trangThai,
         createdAt: user.createdAt,
@@ -35,15 +38,18 @@ export const userApi = {
   createUser: async (userData: any) => {
     // Map frontend role to backend VaiTro enum
     const roleMap: Record<string, string> = {
-      'user': 'THU_KHO',
+      'user': 'THU_KHO', // Tạm map khách hàng = Thủ kho
       'staff': 'THU_NGAN',
       'admin': 'QUAN_LY'
     };
     
+    // Tạo username tự động nếu không có
+    const username = userData.username || `customer_${Date.now()}`;
+    
     // Map frontend fields to backend fields
     const backendData: any = {
-      tenDangNhap: userData.username,
-      matKhau: userData.password || 'defaultPass123',
+      tenDangNhap: username,
+      matKhau: userData.password || `temp_${Date.now()}`,
       hoTen: userData.fullName,
       vaiTro: roleMap[userData.role] || 'THU_KHO',
       trangThai: userData.isActive !== undefined ? userData.isActive : true,
@@ -57,6 +63,7 @@ export const userApi = {
       backendData.soDienThoai = userData.phone;
     }
     
+    console.log('Creating user with data:', backendData);
     const response = await axiosInstance.post('/users', backendData);
     return response.data;
   },

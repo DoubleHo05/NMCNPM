@@ -1,51 +1,56 @@
 import axiosInstance from './axiosInstance';
-import { WarehouseItem, WarehouseImport } from '../store/slices/warehouseSlice';
+
+export interface ImportItem {
+  maSach: number;
+  tenSach: string;
+  soLuong: number;
+  donGia: number;
+}
+
+export interface ImportReceipt {
+  maPhieuNhap?: number;
+  ngayNhap: string;
+  maNV: number;
+  chiTiet: ImportItem[];
+}
+
+export interface Book {
+  maSach: number;
+  tenSach: string;
+  tacGia?: string;
+  theLoai?: string;
+  soLuongTon: number;
+  donGia: number;
+}
 
 export const warehouseApi = {
-  // Warehouse Items
-  getItems: async () => {
-    const response = await axiosInstance.get('/warehouse/items');
+  // Lấy danh sách phiếu nhập
+  getImportReceipts: async (params?: { page?: number; limit?: number }) => {
+    const response = await axiosInstance.get('/warehouse', { params });
     return response.data;
   },
 
-  getItemById: async (id: string) => {
-    const response = await axiosInstance.get(`/warehouse/items/${id}`);
+  // Lấy chi tiết phiếu nhập
+  getImportReceiptById: async (id: number) => {
+    const response = await axiosInstance.get(`/warehouse/${id}`);
     return response.data;
   },
 
-  updateItem: async (id: string, itemData: Partial<WarehouseItem>) => {
-    const response = await axiosInstance.put(`/warehouse/items/${id}`, itemData);
+  // Tạo phiếu nhập mới
+  createImportReceipt: async (data: ImportReceipt) => {
+    const response = await axiosInstance.post('/warehouse', data);
     return response.data;
   },
 
-  // Warehouse Imports
-  getImports: async () => {
-    const response = await axiosInstance.get('/warehouse/imports');
+  // Lấy danh sách sách
+  getBooks: async (params?: { search?: string }) => {
+    const response = await axiosInstance.get('/books', { params });
     return response.data;
   },
 
-  getImportById: async (id: string) => {
-    const response = await axiosInstance.get(`/warehouse/imports/${id}`);
-    return response.data;
-  },
-
-  createImport: async (importData: Partial<WarehouseImport>) => {
-    const response = await axiosInstance.post('/warehouse/imports', importData);
-    return response.data;
-  },
-
-  updateImport: async (id: string, importData: Partial<WarehouseImport>) => {
-    const response = await axiosInstance.put(`/warehouse/imports/${id}`, importData);
-    return response.data;
-  },
-
-  deleteImport: async (id: string) => {
-    const response = await axiosInstance.delete(`/warehouse/imports/${id}`);
-    return response.data;
-  },
-
-  getWarehouseStats: async () => {
-    const response = await axiosInstance.get('/warehouse/stats');
+  // Lấy sách theo ID
+  getBookById: async (id: number) => {
+    const response = await axiosInstance.get(`/books/${id}`);
     return response.data;
   },
 };

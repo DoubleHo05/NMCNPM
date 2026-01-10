@@ -249,12 +249,19 @@ const UserManagement: React.FC = () => {
         limit: 10,
         search: searchTerm,
         vaiTro: filterRole,
-        trangThai: filterStatus
+        trangThai: filterStatus // Không force thành 'true' nữa, để user tự filter
       });
       if (response.success) {
-        setUsers(response.data.users);
+        // Chỉ lấy nhân viên (không lấy khách hàng)
+        // Loại bỏ các user có username bắt đầu bằng 'customer_' hoặc chứa '_deleted_'
+        const staffUsers = response.data.users.filter(user => 
+          (user.vaiTro === 'QUAN_LY' || user.vaiTro === 'THU_KHO' || user.vaiTro === 'THU_NGAN') &&
+          !user.tenDangNhap.startsWith('customer_') &&
+          !user.tenDangNhap.includes('_deleted_') // Ẩn user đã xóa (có _deleted_ trong username)
+        );
+        setUsers(staffUsers);
         setTotalPages(response.data.pagination.totalPages);
-        setTotalItems(response.data.pagination.totalItems);
+        setTotalItems(staffUsers.length); // Cập nhật số lượng thực tế
       }
     } catch (err) {
       setError('Không thể tải danh sách nhân viên');
