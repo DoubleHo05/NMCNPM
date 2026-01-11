@@ -38,15 +38,7 @@ const getAllCustomers = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        customers,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / take),
-          totalItems: total,
-          itemsPerPage: take,
-        },
-      },
+      data: customers,
     });
   } catch (error) {
     console.error('Get all customers error:', error);
@@ -75,7 +67,7 @@ const getCustomerById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { customer },
+      data: customer,
     });
   } catch (error) {
     console.error('Get customer by ID error:', error);
@@ -89,17 +81,17 @@ const getCustomerById = async (req, res) => {
 // Create customer
 const createCustomer = async (req, res) => {
   try {
-    const { tenKH, soDienThoai, email, diaChi } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
     // Validate required fields
-    if (!tenKH) {
+    if (!fullName) {
       return res.status(400).json({
         success: false,
         message: 'Tên khách hàng là bắt buộc',
       });
     }
 
-    if (!soDienThoai) {
+    if (!phone) {
       return res.status(400).json({
         success: false,
         message: 'Số điện thoại là bắt buộc',
@@ -109,16 +101,17 @@ const createCustomer = async (req, res) => {
     // Create customer
     const customer = await prisma.khachHang.create({
       data: {
-        tenKH,
-        soDienThoai,
+        tenKH: fullName,
+        soDienThoai: phone,
         email: email || null,
+        diaChi: address || null,
         diemTichLuy: 0,
       },
     });
 
     res.status(201).json({
       success: true,
-      data: { customer },
+      data: customer,
       message: 'Tạo khách hàng thành công',
     });
   } catch (error) {
@@ -134,7 +127,7 @@ const createCustomer = async (req, res) => {
 const updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tenKH, soDienThoai, email, diemTichLuy } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
     // Check if customer exists
     const existingCustomer = await prisma.khachHang.findUnique({
@@ -152,16 +145,16 @@ const updateCustomer = async (req, res) => {
     const customer = await prisma.khachHang.update({
       where: { maKH: parseInt(id) },
       data: {
-        tenKH: tenKH || existingCustomer.tenKH,
-        soDienThoai: soDienThoai || existingCustomer.soDienThoai,
+        tenKH: fullName || existingCustomer.tenKH,
+        soDienThoai: phone || existingCustomer.soDienThoai,
         email: email !== undefined ? email : existingCustomer.email,
-        diemTichLuy: diemTichLuy !== undefined ? diemTichLuy : existingCustomer.diemTichLuy,
+        diaChi: address !== undefined ? address : existingCustomer.diaChi,
       },
     });
 
     res.status(200).json({
       success: true,
-      data: { customer },
+      data: customer,
       message: 'Cập nhật khách hàng thành công',
     });
   } catch (error) {

@@ -1,56 +1,41 @@
-import axiosInstance from './axiosInstance';
+import axios from 'axios';
 
-export interface ImportItem {
-  maSach: number;
-  tenSach: string;
-  soLuong: number;
-  donGia: number;
-}
-
-export interface ImportReceipt {
-  maPhieuNhap?: number;
-  ngayNhap: string;
-  maNV: number;
-  chiTiet: ImportItem[];
-}
-
-export interface Book {
-  maSach: number;
-  tenSach: string;
-  tacGia?: string;
-  theLoai?: string;
-  soLuongTon: number;
-  donGia: number;
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const warehouseApi = {
-  // Lấy danh sách phiếu nhập
-  getImportReceipts: async (params?: { page?: number; limit?: number }) => {
-    const response = await axiosInstance.get('/warehouse', { params });
-    return response.data;
+  getItems: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/warehouse/items`);
+      return response.data;
+    } catch (error) {
+      console.error('Get warehouse items error:', error);
+      // Return empty data if API not available
+      return [];
+    }
   },
 
-  // Lấy chi tiết phiếu nhập
-  getImportReceiptById: async (id: number) => {
-    const response = await axiosInstance.get(`/warehouse/${id}`);
-    return response.data;
+  getWarehouseStats: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/warehouse/stats`);
+      return response.data;
+    } catch (error) {
+      console.error('Get warehouse stats error:', error);
+      // Return default stats if API not available
+      return {
+        totalItems: 0,
+        totalValue: 0,
+        lowStockItems: 0,
+      };
+    }
   },
 
-  // Tạo phiếu nhập mới
-  createImportReceipt: async (data: ImportReceipt) => {
-    const response = await axiosInstance.post('/warehouse', data);
-    return response.data;
+  updateItem: async (id: string, data: any) => {
+    const response = await axios.put(`${API_URL}/warehouse/items/${id}`, data);
+    return response;
   },
 
-  // Lấy danh sách sách
-  getBooks: async (params?: { search?: string }) => {
-    const response = await axiosInstance.get('/books', { params });
-    return response.data;
-  },
-
-  // Lấy sách theo ID
-  getBookById: async (id: number) => {
-    const response = await axiosInstance.get(`/books/${id}`);
-    return response.data;
+  createImport: async (data: any) => {
+    const response = await axios.post(`${API_URL}/warehouse/imports`, data);
+    return response;
   },
 };

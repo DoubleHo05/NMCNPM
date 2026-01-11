@@ -5,7 +5,6 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const customerRoutes = require('./routes/customerRoutes');
-const warehouseRoutes = require('./routes/warehouseRoutes');
 const bookRoutes = require('./routes/bookRoutes');
 
 const app = express();
@@ -27,17 +26,15 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       customers: '/api/customers',
-      warehouse: '/api/warehouse',
       books: '/api/books',
     },
   });
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
-app.use('/api/warehouse', warehouseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

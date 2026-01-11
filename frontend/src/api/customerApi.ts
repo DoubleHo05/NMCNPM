@@ -1,66 +1,31 @@
-import axiosInstance from './axiosInstance';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const customerApi = {
   getCustomers: async () => {
-    const response = await axiosInstance.get('/customers');
-    const backendData = response.data;
-    if (backendData.data?.customers) {
-      const mappedCustomers = backendData.data.customers.map((customer: any) => ({
-        id: String(customer.maKH),
-        fullName: customer.tenKH || '',
-        phone: customer.soDienThoai || '',
-        email: customer.email || '',
-        address: customer.diaChi || '',
-        points: customer.diemTichLuy || 0,
-        role: 'customer',
-        isActive: true,
-      }));
-      
-      return { data: mappedCustomers };
+    try {
+      const response = await axios.get(`${API_URL}/customers`);
+      return response;
+    } catch (error) {
+      console.error('Get customers error:', error);
+      // Return empty data if API not available
+      return { data: [] };
     }
-    return { data: [] };
   },
 
-  getCustomerById: async (id: string) => {
-    const response = await axiosInstance.get(`/customers/${id}`);
+  createCustomer: async (data: any) => {
+    const response = await axios.post(`${API_URL}/customers`, data);
     return response.data;
   },
 
-  createCustomer: async (customerData: any) => {
-    const backendData: any = {
-      tenKH: customerData.fullName,
-      soDienThoai: customerData.phone,
-    };
-    
-    if (customerData.email) {
-      backendData.email = customerData.email;
-    }
-    if (customerData.address) {
-      backendData.diaChi = customerData.address;
-    }
-    
-    console.log('Creating customer with data:', backendData);
-    const response = await axiosInstance.post('/customers', backendData);
-    return response.data;
-  },
-
-  updateCustomer: async (id: string, customerData: any) => {
-    const backendData: any = {
-      tenKH: customerData.fullName,
-      soDienThoai: customerData.phone,
-      email: customerData.email || null,
-    };
-    
-    if (customerData.address) {
-      backendData.diaChi = customerData.address;
-    }
-    
-    const response = await axiosInstance.put(`/customers/${id}`, backendData);
+  updateCustomer: async (id: string, data: any) => {
+    const response = await axios.put(`${API_URL}/customers/${id}`, data);
     return response.data;
   },
 
   deleteCustomer: async (id: string) => {
-    const response = await axiosInstance.delete(`/customers/${id}`);
+    const response = await axios.delete(`${API_URL}/customers/${id}`);
     return response.data;
   },
 };
