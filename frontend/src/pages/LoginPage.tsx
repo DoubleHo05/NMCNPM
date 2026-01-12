@@ -8,8 +8,8 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -62,10 +62,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       <div>
         <div className="flex justify-between items-baseline">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Mật khẩu</label>
-            <Link to="/forgot-password" className="text-xs font-medium text-blue-600 hover:underline">
-                Quên mật khẩu?
-            </Link>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Mật khẩu</label>
+          <Link to="/forgot-password" className="text-xs font-medium text-blue-600 hover:underline">
+            Quên mật khẩu?
+          </Link>
         </div>
         <div className="relative">
           <input
@@ -78,8 +78,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             disabled={isLoading}
           />
           <Lock className="absolute left-3 top-3 text-slate-400" size={18} />
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
             disabled={isLoading}

@@ -33,9 +33,9 @@ async function main() {
   const nxb1 = await prisma.nhaXuatBan.create({ data: { tenNXB: 'NXB Trẻ', diaChi: 'TP.HCM' } });
 
   // 4. Nhân viên (mật khẩu được hash)
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const hashedPassword2 = await bcrypt.hash('warehouse123', 10);
-  
+  const hashedPassword = await bcrypt.hash('123456', 10);
+  const hashedPassword2 = await bcrypt.hash('123456', 10);
+
   const nv = await prisma.nhanVien.create({
     data: {
       tenDangNhap: 'admin',
