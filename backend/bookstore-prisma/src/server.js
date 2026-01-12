@@ -4,6 +4,9 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const bookRoutes = require('./routes/bookRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const rulesRoutes = require('./routes/rulesRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,12 +26,18 @@ app.get('/', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       users: '/api/users',
+      books: '/api/books',
+      customers: '/api/customers',
+      rules: '/api/rules',
     },
   });
 });
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/rules', rulesRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

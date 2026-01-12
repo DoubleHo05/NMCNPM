@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, RotateCcw, Check } from 'lucide-react';
+import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, RotateCcw, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 const BookList: React.FC = () => {
-  const { books, deleteBook } = useStore();
+  const { books, deleteBook, isLoadingBooks, booksError, refreshBooks } = useStore();
   const { canManageBooks } = usePermissions();
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
@@ -92,6 +92,35 @@ const BookList: React.FC = () => {
     filters.stockStatus !== 'all'
   ].filter(Boolean).length;
 
+  // Loading state
+  if (isLoadingBooks) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        <p className="text-slate-600">Đang tải danh sách sách...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (booksError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="text-red-500 text-center">
+          <p className="text-lg font-semibold">Lỗi tải dữ liệu</p>
+          <p className="text-sm text-slate-600 mt-1">{booksError}</p>
+        </div>
+        <button
+          onClick={() => refreshBooks()}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <RefreshCw size={16} />
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb & Search Section */}
@@ -113,6 +142,15 @@ const BookList: React.FC = () => {
             </div>
             
             <div className="flex gap-3 w-full sm:w-auto">
+                {/* Refresh Button */}
+                <button
+                  onClick={() => refreshBooks()}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors text-slate-700"
+                  title="Làm mới danh sách"
+                >
+                  <RefreshCw size={16} />
+                </button>
+                
                 <div className="relative">
                     <button 
                         onClick={() => setShowFilters(!showFilters)}

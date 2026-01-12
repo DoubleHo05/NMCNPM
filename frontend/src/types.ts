@@ -24,6 +24,7 @@ export interface Customer {
   address: string;
   email: string;
   currentDebt: number;
+  loyaltyPoints?: number;
 }
 
 export interface ImportTicket {

@@ -1,5 +1,8 @@
 import { Book, Customer, SystemRules } from './types';
 
+// Default API URL
+export const DEFAULT_API_URL = 'http://localhost:5000/api';
+
 export const INITIAL_RULES: SystemRules = {
   minImportQuantity: 150,
   maxStockBeforeImport: 300,
