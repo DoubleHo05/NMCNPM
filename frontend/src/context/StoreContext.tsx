@@ -88,11 +88,23 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         // [NEW] Fetch Books from Real DB
+        // [NEW] Fetch Books from Real DB
         const booksRes = await bookService.getAllBooks();
         if (booksRes && (booksRes as any).success) {
-          // Map backend data to frontend Book interface if needed, or assume controller formatted it
-          // Controller returns { data: [...] }
-          setBooks((booksRes as any).data);
+          const backendBooks = (booksRes as any).data;
+          const mappedBooks: Book[] = backendBooks.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            category: b.category || 'Chưa phân loại',
+            author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || 'Không rõ'),
+            stock: b.stock || 0,
+            price: b.salePrice || 0,
+            publisher: b.publisher || 'Không rõ',
+            publishYear: 2024, // Default
+            imageUrl: b.imageUrl, // Map image
+            description: b.description
+          }));
+          setBooks(mappedBooks);
         }
 
       } catch (error) {

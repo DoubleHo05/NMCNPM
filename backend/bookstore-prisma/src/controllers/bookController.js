@@ -1,108 +1,201 @@
-const prisma = require('../config/database');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-// Lấy danh sách tất cả sách
-const getAllBooks = async (req, res) => {
-    try {
-        const books = await prisma.sach.findMany({
-            include: {
-                theLoai: true,
-                nhaXuatBan: true,
-                tacGia: {
-                    include: {
-                        tacGia: true
-                    }
-                }
+/**
+ * Lấy danh sách tất cả sách
+ */
+exports.getAllBooks = async (req, res) => {
+  try {
+    const books = await prisma.sach.findMany({
+      include: {
+        theLoai: {
+          select: {
+            tenTheLoai: true
+          }
+        },
+        nhaXuatBan: {
+          select: {
+            tenNXB: true
+          }
+        },
+        tacGia: {
+          include: {
+            tacGia: {
+              select: {
+                tenTacGia: true
+              }
             }
-        });
+          }
+        }
+      },
+      orderBy: {
+        tenSach: 'asc'
+      }
+    });
 
-        // Format data to match frontend expectation
-        const formattedBooks = books.map(book => ({
-            id: String(book.maSach), // Frontend expects string ID
-            // Optional: Format as B001 etc if needed, but plain string number is safer for now
-            // id: `B${String(book.maSach).padStart(3, '0')}`,
-            title: book.tenSach,
-            author: book.tacGia.map(t => t.tacGia.tenTacGia).join(', '),
-            category: book.theLoai?.tenTheLoai || '',
-            publisher: book.nhaXuatBan?.tenNXB || '',
-            publishYear: 2024,
-            price: Number(book.giaBanLe),
-            stock: book.soLuongTon,
-            imageUrl: book.hinhAnh || '',
-            description: book.moTa || '',
-        }));
+    const formattedBooks = books.map(book => ({
+      id: book.maSach.toString(),
+      title: book.tenSach,
+      isbn: book.isbn,
+      category: book.theLoai?.tenTheLoai,
+      publisher: book.nhaXuatBan?.tenNXB,
+      authors: book.tacGia.map(st => st.tacGia.tenTacGia),
+      importPrice: parseFloat(book.giaNhap),
+      salePrice: parseFloat(book.giaBanLe),
+      stock: book.soLuongTon,
+      description: book.moTa,
+      barcode: book.barcode,
+      imageUrl: book.hinhAnh
+    }));
 
-        res.status(200).json({
-            success: true,
-            data: formattedBooks, // Return raw or formatted? Let's return raw + formatted or handle in FE
-            // Let's stick to returning raw-ish structure but properly populated
-            books: books
-        });
-    } catch (error) {
-        console.error('Get all books error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Lỗi server khi lấy danh sách sách'
-        });
-    }
+    res.status(200).json({
+      success: true,
+      data: formattedBooks
+    });
+  } catch (error) {
+    console.error('Error getting books:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách sách',
+      error: error.message
+    });
+  }
 };
 
-// Cập nhật thông tin sách
-const updateBook = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const data = req.body;
+/**
+ * Lấy thông tin chi tiết một sách
+ */
+exports.getBookById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const book = await prisma.sach.findUnique({
+      where: { maSach: parseInt(id) },
+      include: {
+        theLoai: true,
+        nhaXuatBan: true,
+        tacGia: {
+          include: {
+            tacGia: true
+          }
+        }
+      }
+    });
 
-        // Map frontend fields to backend
-        const updateData = { ...data };
-        if (data.description !== undefined) updateData.moTa = data.description;
-        if (data.imageUrl !== undefined) updateData.hinhAnh = data.imageUrl;
-        delete updateData.description; // Remove frontend-only keys if strict
-        delete updateData.imageUrl;
-
-        const updatedBook = await prisma.sach.update({
-            where: { maSach: parseInt(id) },
-            data: updateData
-        });
-
-        res.status(200).json({
-            success: true,
-            message: 'Cập nhật thành công',
-            data: updatedBook
-        });
-    } catch (error) {
-        console.error('Update book error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Lỗi khi cập nhật sách'
-        });
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sách'
+      });
     }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: book.maSach.toString(),
+        title: book.tenSach,
+        isbn: book.isbn,
+        category: book.theLoai?.tenTheLoai,
+        categoryId: book.maTheLoai,
+        publisher: book.nhaXuatBan?.tenNXB,
+        publisherId: book.maNXB,
+        authors: book.tacGia.map(st => ({
+          id: st.tacGia.maTacGia,
+          name: st.tacGia.tenTacGia
+        })),
+        importPrice: parseFloat(book.giaNhap),
+        salePrice: parseFloat(book.giaBanLe),
+        stock: book.soLuongTon,
+        description: book.moTa,
+        barcode: book.barcode,
+        imageUrl: book.hinhAnh
+      }
+    });
+  } catch (error) {
+    console.error('Error getting book:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy thông tin sách',
+      error: error.message
+    });
+  }
 };
 
-// Xóa sách
-const deleteBook = async (req, res) => {
-    try {
-        const { id } = req.params;
-        // Check constraints (e.g. valid invoices)
+/**
+ * Tìm kiếm sách
+ */
+exports.searchBooks = async (req, res) => {
+  try {
+    const { q } = req.query;
 
-        await prisma.sach.delete({
-            where: { maSach: parseInt(id) }
-        });
-
-        res.status(200).json({
-            success: true,
-            message: 'Xóa sách thành công'
-        });
-    } catch (error) {
-        console.error('Delete book error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Không thể xóa sách (có thể đang có dữ liệu liên quan)'
-        });
+    if (!q) {
+      return exports.getAllBooks(req, res);
     }
-};
 
-module.exports = {
-    getAllBooks,
-    updateBook,
-    deleteBook
+    const books = await prisma.sach.findMany({
+      where: {
+        OR: [
+          {
+            tenSach: {
+              contains: q
+            }
+          },
+          {
+            isbn: {
+              contains: q
+            }
+          },
+          {
+            barcode: {
+              contains: q
+            }
+          }
+        ]
+      },
+      include: {
+        theLoai: {
+          select: {
+            tenTheLoai: true
+          }
+        },
+        nhaXuatBan: {
+          select: {
+            tenNXB: true
+          }
+        },
+        tacGia: {
+          include: {
+            tacGia: {
+              select: {
+                tenTacGia: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const formattedBooks = books.map(book => ({
+      id: book.maSach.toString(),
+      title: book.tenSach,
+      isbn: book.isbn,
+      category: book.theLoai?.tenTheLoai,
+      publisher: book.nhaXuatBan?.tenNXB,
+      authors: book.tacGia.map(st => st.tacGia.tenTacGia),
+      importPrice: parseFloat(book.giaNhap),
+      salePrice: parseFloat(book.giaBanLe),
+      stock: book.soLuongTon
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedBooks
+    });
+  } catch (error) {
+    console.error('Error searching books:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tìm kiếm sách',
+      error: error.message
+    });
+  }
 };

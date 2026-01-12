@@ -48,13 +48,7 @@ const BookDetail: React.FC = () => {
                      />
                   </div>
                   {/* Thumbnails (Mockup) */}
-                  <div className="flex gap-4 mt-4 overflow-x-auto pb-2 w-full justify-center">
-                     {[book.imageUrl, book.imageUrl, book.imageUrl].map((img, i) => (
-                        <div key={i} className={`w-16 h-20 border-2 rounded cursor-pointer overflow-hidden ${i === 0 ? 'border-blue-500' : 'border-transparent hover:border-slate-300'}`}>
-                           <img src={img} alt="" className="w-full h-full object-cover" />
-                        </div>
-                     ))}
-                  </div>
+
                </div>
 
                {/* Right Column: Info */}

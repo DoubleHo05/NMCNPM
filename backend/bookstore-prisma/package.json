@@ -4,7 +4,7 @@
   "description": "Dự án quản lý nhà sách sử dụng Prisma 6",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js",
+    "dev": "node src/server.js",
     "db:push": "npx prisma db push",
     "db:seed": "npx prisma db seed",
     "generate": "npx prisma generate",
@@ -19,7 +19,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "6.1.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
