@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { DollarSign, AlertCircle, CheckCircle, User, MapPin, Phone, Mail, Save, History, Plus, ShieldAlert } from 'lucide-react';
+import { DollarSign, AlertCircle, CheckCircle, User, MapPin, Phone, Mail, Save, History, Plus, ShieldAlert, Printer, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
 
@@ -68,6 +68,18 @@ const CashCollection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [lastPayment, setLastPayment] = useState<{
+    customerId: string;
+    customerName: string;
+    address: string;
+    phone: string;
+    email: string;
+    amount: number;
+    date: string;
+    receiptId: string;
+  } | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Show access denied if user doesn't have permission
   if (!canCollectPayment) {
@@ -97,7 +109,11 @@ const CashCollection: React.FC = () => {
 
   const selectedCustomer = customers.find(c => c.id === customerId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -111,22 +127,47 @@ const CashCollection: React.FC = () => {
       return;
     }
 
-    const result = collectMoney(customerId, amount);
-    if (result.success) {
-      setSuccess(result.message);
-      
-      const customerName = getCustomer(customerId)?.name || "Không rõ";
-      addNotification({
-        type: 'payment',
-        title: 'Ghi nhận thanh toán',
-        message: `Đã thu ${amount.toLocaleString()}đ từ khách hàng ${customerName}.`
-      });
+    const customer = getCustomer(customerId);
+    
+    // QĐ4: Kiểm tra số tiền thu không vượt quá công nợ
+    if (customer && amount > customer.currentDebt) {
+      setError(`Số tiền thu (${amount.toLocaleString()}đ) vượt quá công nợ hiện tại (${customer.currentDebt.toLocaleString()}đ). Vui lòng nhập số tiền nhỏ hơn hoặc bằng công nợ.`);
+      return;
+    }
 
-      setAmount(0);
-      setCustomerId('');
-      setTimeout(() => setActiveTab('history'), 1500);
-    } else {
-      setError(result.message);
+    try {
+      const result = await collectMoney(customerId, amount);
+      if (result.success) {
+        // Lưu thông tin phiếu thu để in
+        setLastPayment({
+          customerId: customerId,
+          customerName: customer?.name || 'Không rõ',
+          address: customer?.address || '',
+          phone: customer?.phone || '',
+          email: customer?.email || '',
+          amount: amount,
+          date: new Date().toISOString(),
+          receiptId: 'PT-' + Date.now(),
+        });
+        
+        setSuccess(result.message);
+        
+        addNotification({
+          type: 'payment',
+          title: 'Ghi nhận thanh toán',
+          message: `Đã thu ${amount.toLocaleString()}đ từ khách hàng ${customer?.name || 'Không rõ'}.`
+        });
+
+        setAmount(0);
+        setCustomerId('');
+        
+        // Hiển thị dialog in phiếu thu
+        setShowPrintDialog(true);
+      } else {
+        setError(result.message);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Có lỗi xảy ra khi thu tiền');
     }
   };
 
@@ -253,6 +294,20 @@ const CashCollection: React.FC = () => {
                   </div>
 
                   <div className="relative group z-0">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                      <div className="flex items-center w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                          <Mail size={18} className="text-slate-400 mr-3" />
+                          <input 
+                              type="text" 
+                              readOnly 
+                              className="w-full bg-transparent outline-none text-slate-900 font-medium cursor-not-allowed"
+                              value={selectedCustomer?.email || ''}
+                              placeholder="..."
+                          />
+                      </div>
+                  </div>
+
+                  <div className="relative group z-0">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền thu</label>
                       <div className="relative">
                           <input
@@ -297,6 +352,119 @@ const CashCollection: React.FC = () => {
       {activeTab === 'history' && (
         <div className="animate-in fade-in duration-300">
           <CashCollectionHistoryView />
+        </div>
+      )}
+
+      {/* Print Receipt Dialog */}
+      {showPrintDialog && lastPayment && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:bg-white print:p-0">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden print:shadow-none print:rounded-none print:max-w-full">
+            {/* Header - ẩn khi in */}
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-green-50 print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-green-800">Lập phiếu thu thành công!</h3>
+                  <p className="text-sm text-green-600">Bạn có thể in phiếu thu ngay bây giờ</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowPrintDialog(false);
+                  setActiveTab('history');
+                }} 
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Receipt Content - hiển thị khi in */}
+            <div ref={printRef} className="p-6 print:p-8">
+              <div className="text-center mb-6 print:mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 print:text-3xl">PHIẾU THU TIỀN</h2>
+                <p className="text-sm text-slate-500 mt-1">Mã phiếu: {lastPayment.receiptId}</p>
+                <p className="text-sm text-slate-500">
+                  Ngày thu: {new Date(lastPayment.date).toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 print:border-slate-400">
+                <h4 className="font-semibold text-slate-700 border-b pb-2 mb-3">Thông tin khách hàng</h4>
+                
+                <div className="flex items-start gap-3">
+                  <User size={16} className="text-slate-400 mt-0.5 print:hidden" />
+                  <div className="flex-1">
+                    <span className="text-xs text-slate-500 block">Họ tên khách hàng</span>
+                    <span className="font-medium text-slate-900">{lastPayment.customerName}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin size={16} className="text-slate-400 mt-0.5 print:hidden" />
+                  <div className="flex-1">
+                    <span className="text-xs text-slate-500 block">Địa chỉ</span>
+                    <span className="font-medium text-slate-900">{lastPayment.address || 'Chưa cập nhật'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Phone size={16} className="text-slate-400 mt-0.5 print:hidden" />
+                  <div className="flex-1">
+                    <span className="text-xs text-slate-500 block">Điện thoại</span>
+                    <span className="font-medium text-slate-900">{lastPayment.phone || 'Chưa cập nhật'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Mail size={16} className="text-slate-400 mt-0.5 print:hidden" />
+                  <div className="flex-1">
+                    <span className="text-xs text-slate-500 block">Email</span>
+                    <span className="font-medium text-slate-900">{lastPayment.email || 'Chưa cập nhật'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 bg-blue-50 rounded-xl p-4 text-center print:bg-slate-100 print:border print:border-slate-400">
+                <span className="text-sm text-blue-600 print:text-slate-600">Số tiền thu</span>
+                <p className="text-3xl font-bold text-blue-700 print:text-slate-900">
+                  {lastPayment.amount.toLocaleString()} VNĐ
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-dashed border-slate-300 text-center text-xs text-slate-500 print:mt-8">
+                <p>Cảm ơn quý khách đã thanh toán!</p>
+                <p className="mt-1">Nhà sách XYZ - Hotline: 1900 xxxx</p>
+              </div>
+            </div>
+
+            {/* Action Buttons - ẩn khi in */}
+            <div className="px-6 py-4 border-t border-slate-200 flex gap-3 print:hidden">
+              <button
+                onClick={() => {
+                  setShowPrintDialog(false);
+                  setActiveTab('history');
+                }}
+                className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Đóng
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex-1 py-3 px-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer size={20} /> In phiếu thu
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

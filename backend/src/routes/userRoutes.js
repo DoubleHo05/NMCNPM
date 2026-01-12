@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, checkRole } = require('../middleware/auth');
+const { authMiddleware, checkRole } = require('../middlewares/auth');
 const userController = require('../controllers/userController');
 
 // Tất cả routes yêu cầu đăng nhập

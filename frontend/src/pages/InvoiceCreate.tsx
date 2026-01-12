@@ -82,45 +82,49 @@ const InvoiceCreate: React.FC = () => {
     setItems(prev => prev.filter(i => i.bookId !== bookId));
   };
 
-  const handlePaymentConfirm = (amountPaid: number) => {
+  const handlePaymentConfirm = async (amountPaid: number) => {
     if (!customerId) return;
     setIsProcessing(true);
 
-    // 1. Create Invoice
-    const invoiceResult = createInvoice(customerId, items);
+    try {
+      // 1. Create Invoice (await async call)
+      const invoiceResult = await createInvoice(customerId, items);
 
-    if (invoiceResult.success) {
-      // 2. Record Payment if amount > 0
-      if (amountPaid > 0) {
-        collectMoney(customerId, amountPaid);
-      }
+      if (invoiceResult.success) {
+        // 2. Record Payment if amount > 0
+        if (amountPaid > 0) {
+          await collectMoney(customerId, amountPaid);
+        }
 
-      const customer = getCustomer(customerId);
-      addNotification({
-        type: 'invoice',
-        title: 'Bán hàng thành công',
-        message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
-      });
+        const customer = getCustomer(customerId);
+        addNotification({
+          type: 'invoice',
+          title: 'Bán hàng thành công',
+          message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
+        });
 
-      // Show success in modal (keep modal open for printing)
-      if (invoiceResult.message.includes('HD-')) {
-        // Extract ID if message contains it, or find latest invoice
-        // For simplicity, we can pass ID from createInvoice return if we modified context, 
-        // but context returns string message. We'll simulate ID for now or grab top history.
-        setCompletedInvoiceId('HD-NEW');
+        // Show success in modal (keep modal open for printing)
+        // Extract invoice ID from message if available
+        const idMatch = invoiceResult.message.match(/#(\d+)/);
+        if (idMatch) {
+          setCompletedInvoiceId('HD-' + idMatch[1]);
+        } else {
+          setCompletedInvoiceId('HD-' + Date.now());
+        }
+
+        // Cleanup cart, but keep modal open
+        setItems([]);
+        setCustomerId('');
       } else {
-        setCompletedInvoiceId('HD-' + Date.now());
+        alert(invoiceResult.message);
+        setIsPaymentModalOpen(false); // Close on error
       }
-
-      // Cleanup cart, but keep modal open
-      setItems([]);
-      setCustomerId('');
-    } else {
-      alert(invoiceResult.message);
-      setIsPaymentModalOpen(false); // Close on error
+    } catch (error: any) {
+      alert(error.message || 'Có lỗi xảy ra khi xử lý thanh toán');
+      setIsPaymentModalOpen(false);
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
   };
 
   const formatCurrency = (val: number) => val.toLocaleString('vi-VN');

@@ -57,9 +57,8 @@ const login = async (req, res) => {
           maNV: user.maNV,
           tenDangNhap: user.tenDangNhap,
           hoTen: user.hoTen,
-          email: user.email,
-          soDienThoai: user.soDienThoai,
           vaiTro: user.vaiTro,
+          trangThai: user.trangThai,
         },
         accessToken,
         refreshToken,
@@ -138,11 +137,8 @@ const getCurrentUser = async (req, res) => {
         maNV: true,
         tenDangNhap: true,
         hoTen: true,
-        email: true,
-        soDienThoai: true,
         vaiTro: true,
-        trangThai: true,
-        createdAt: true,
+        trangThai: true
       },
     });
 

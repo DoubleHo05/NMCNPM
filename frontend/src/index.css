@@ -4,3 +4,30 @@
 
 html, body, #root { height: 100%; }
 body { margin: 0; }
+
+/* Print styles for receipts */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .fixed.inset-0 {
+    position: absolute !important;
+    background: white !important;
+  }
+  
+  .fixed.inset-0,
+  .fixed.inset-0 * {
+    visibility: visible;
+  }
+  
+  .fixed.inset-0 > div {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}
