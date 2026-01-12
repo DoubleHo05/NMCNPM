@@ -7,6 +7,8 @@ const userRoutes = require('./routes/userRoutes');
 const bookRoutes = require('./routes/bookRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const rulesRoutes = require('./routes/rulesRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
+const settingRoutes = require('./routes/settingRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,8 +18,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.get('/', (req, res) => {
   res.json({
@@ -29,6 +31,8 @@ app.get('/', (req, res) => {
       books: '/api/books',
       customers: '/api/customers',
       rules: '/api/rules',
+      inventory: '/api/inventory',
+      settings: '/api/settings',
     },
   });
 });
@@ -38,6 +42,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/rules', rulesRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/settings', settingRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

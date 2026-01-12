@@ -77,6 +77,7 @@ model Sach {
   giaBanLe    Decimal  @db.Decimal(15, 2) @map("GiaBanLe")
   soLuongTon  Int?     @default(0) @map("SoLuongTon")
   moTa        String?  @db.Text @map("MoTa")
+  hinhAnh     String?  @db.LongText @map("HinhAnh")
   barcode     String?  @db.VarChar(100) @map("Barcode")
 
   theLoai     TheLoai? @relation(fields: [maTheLoai], references: [maTheLoai])

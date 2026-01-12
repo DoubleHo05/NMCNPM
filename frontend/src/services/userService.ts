@@ -1,5 +1,5 @@
 import { apiRequest } from './api';
-import { User } from './authService';
+import type { User } from './authService';
 
 // User list response
 export interface UserListResponse {

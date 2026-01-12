@@ -1,4 +1,4 @@
-import { Book, Customer, SystemRules } from './types';
+import type { Book, Customer, SystemRules } from './types';
 
 // Default API URL
 export const DEFAULT_API_URL = 'http://localhost:5000/api';
