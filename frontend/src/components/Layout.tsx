@@ -182,7 +182,10 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
             Hệ thống
           </div>
           {isManager && (
-            <SidebarItem to="/users" icon={User} label="Quản lý nhân viên" />
+            <>
+              <SidebarItem to="/users" icon={User} label="Nhân viên" />
+              <SidebarItem to="/admin/users" icon={Shield} label="Khách hàng" />
+            </>
           )}
           <SidebarItem to="/reports" icon={FileText} label="Báo cáo (BM5)" />
           <SidebarItem to="/settings" icon={Settings} label="Quy định (QĐ6)" />

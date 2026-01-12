@@ -4,7 +4,7 @@
   "description": "Dự án quản lý nhà sách sử dụng Prisma 6",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js",
+    "dev": "node src/server.js",
     "db:push": "npx prisma db push",
     "db:seed": "npx prisma db seed",
     "generate": "npx prisma generate",

@@ -1,21 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllCustomers,
-  getCustomerById,
-  createCustomer,
-  updateCustomer,
-  deleteCustomer,
-} = require('../controllers/customerController');
-const { authMiddleware, checkRole } = require('../middleware/auth');
+const customerController = require('../controllers/customerController');
 
-// Public routes - Lấy danh sách khách hàng
-router.get('/', getAllCustomers);
-router.get('/:id', getCustomerById);
-
-// Protected routes - Cần đăng nhập
-router.post('/', authMiddleware, createCustomer);
-router.put('/:id', authMiddleware, updateCustomer);
-router.delete('/:id', authMiddleware, checkRole('QUAN_LY'), deleteCustomer);
+// CRUD routes for customers
+router.get('/', customerController.getAllCustomers);
+router.get('/:id', customerController.getCustomerById);
+router.post('/', customerController.createCustomer);
+router.put('/:id', customerController.updateCustomer);
+router.delete('/:id', customerController.deleteCustomer);
 
 module.exports = router;

@@ -3,11 +3,9 @@ const router = express.Router();
 const { authMiddleware, checkRole } = require('../middleware/auth');
 const userController = require('../controllers/userController');
 
-// Tất cả routes yêu cầu đăng nhập
-router.use(authMiddleware);
-
-// Chỉ QUAN_LY mới được quản lý nhân viên
-router.use(checkRole('QUAN_LY'));
+// Tạm thời bỏ authentication để test
+// router.use(authMiddleware);
+// router.use(checkRole('QUAN_LY'));
 
 // CRUD routes
 router.get('/', userController.getAllUsers);

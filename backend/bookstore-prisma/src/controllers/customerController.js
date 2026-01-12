@@ -1,53 +1,61 @@
 const prisma = require('../utils/prisma');
 
-// Lấy tất cả khách hàng
+// Get all customers
 const getAllCustomers = async (req, res) => {
   try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+    } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build where clause
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { tenKH: { contains: search } },
+        { soDienThoai: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    // Get total count
+    const total = await prisma.khachHang.count({ where });
+
+    // Get customers
     const customers = await prisma.khachHang.findMany({
+      where,
+      skip,
+      take,
       orderBy: {
         maKH: 'desc',
       },
     });
 
-    // Transform data cho frontend
-    const transformedCustomers = customers.map((customer) => ({
-      id: customer.maKH.toString(),
-      name: customer.tenKH || 'Khách hàng',
-      phone: customer.soDienThoai || '',
-      email: customer.email || '',
-      address: '', // Database không có trường này
-      currentDebt: 0, // Sẽ tính từ hóa đơn sau
-      loyaltyPoints: customer.diemTichLuy || 0,
-    }));
-
-    res.json({
+    res.status(200).json({
       success: true,
-      data: transformedCustomers,
-      message: 'Lấy danh sách khách hàng thành công',
+      data: customers,
     });
   } catch (error) {
-    console.error('Error getting customers:', error);
+    console.error('Get all customers error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi lấy danh sách khách hàng',
-      error: error.message,
+      message: 'Lỗi server khi lấy danh sách khách hàng',
     });
   }
 };
 
-// Lấy chi tiết một khách hàng
+// Get customer by ID
 const getCustomerById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const customer = await prisma.khachHang.findUnique({
       where: { maKH: parseInt(id) },
-      include: {
-        hoadon: {
-          orderBy: { ngayBan: 'desc' },
-          take: 10,
-        },
-      },
     });
 
     if (!customer) {
@@ -57,88 +65,71 @@ const getCustomerById = async (req, res) => {
       });
     }
 
-    const transformedCustomer = {
-      id: customer.maKH.toString(),
-      name: customer.tenKH || 'Khách hàng',
-      phone: customer.soDienThoai || '',
-      email: customer.email || '',
-      address: '',
-      currentDebt: 0,
-      loyaltyPoints: customer.diemTichLuy || 0,
-      invoices: customer.hoadon.map(inv => ({
-        id: inv.maHoaDon.toString(),
-        date: inv.ngayBan,
-        total: parseFloat(inv.tongTien) || 0,
-      })),
-    };
-
-    res.json({
+    res.status(200).json({
       success: true,
-      data: transformedCustomer,
+      data: customer,
     });
   } catch (error) {
-    console.error('Error getting customer:', error);
+    console.error('Get customer by ID error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi lấy thông tin khách hàng',
-      error: error.message,
+      message: 'Lỗi server khi lấy thông tin khách hàng',
     });
   }
 };
 
-// Thêm khách hàng mới
+// Create customer
 const createCustomer = async (req, res) => {
   try {
-    const { tenKH, soDienThoai, email } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
     // Validate required fields
-    if (!tenKH) {
+    if (!fullName) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng điền tên khách hàng',
+        message: 'Tên khách hàng là bắt buộc',
       });
     }
 
-    const newCustomer = await prisma.khachHang.create({
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số điện thoại là bắt buộc',
+      });
+    }
+
+    // Create customer
+    const customer = await prisma.khachHang.create({
       data: {
-        tenKH,
-        soDienThoai,
-        email,
+        tenKH: fullName,
+        soDienThoai: phone,
+        email: email || null,
+        diaChi: address || null,
         diemTichLuy: 0,
       },
     });
 
-    const transformedCustomer = {
-      id: newCustomer.maKH.toString(),
-      name: newCustomer.tenKH,
-      phone: newCustomer.soDienThoai || '',
-      email: newCustomer.email || '',
-      address: '',
-      currentDebt: 0,
-      loyaltyPoints: 0,
-    };
-
     res.status(201).json({
       success: true,
-      data: transformedCustomer,
-      message: 'Thêm khách hàng thành công',
+      data: customer,
+      message: 'Tạo khách hàng thành công',
     });
   } catch (error) {
-    console.error('Error creating customer:', error);
+    console.error('Create customer error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi thêm khách hàng',
-      error: error.message,
+      message: 'Lỗi server khi tạo khách hàng',
     });
   }
 };
 
-// Cập nhật khách hàng
+// Update customer
 const updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tenKH, soDienThoai, email, diemTichLuy } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
+    // Check if customer exists
     const existingCustomer = await prisma.khachHang.findUnique({
       where: { maKH: parseInt(id) },
     });
@@ -150,80 +141,62 @@ const updateCustomer = async (req, res) => {
       });
     }
 
-    const updatedCustomer = await prisma.khachHang.update({
+    // Update customer
+    const customer = await prisma.khachHang.update({
       where: { maKH: parseInt(id) },
       data: {
-        tenKH: tenKH !== undefined ? tenKH : existingCustomer.tenKH,
-        soDienThoai: soDienThoai !== undefined ? soDienThoai : existingCustomer.soDienThoai,
+        tenKH: fullName || existingCustomer.tenKH,
+        soDienThoai: phone || existingCustomer.soDienThoai,
         email: email !== undefined ? email : existingCustomer.email,
-        diemTichLuy: diemTichLuy !== undefined ? parseInt(diemTichLuy) : existingCustomer.diemTichLuy,
+        diaChi: address !== undefined ? address : existingCustomer.diaChi,
       },
     });
 
-    const transformedCustomer = {
-      id: updatedCustomer.maKH.toString(),
-      name: updatedCustomer.tenKH,
-      phone: updatedCustomer.soDienThoai || '',
-      email: updatedCustomer.email || '',
-      address: '',
-      currentDebt: 0,
-      loyaltyPoints: updatedCustomer.diemTichLuy || 0,
-    };
-
-    res.json({
+    res.status(200).json({
       success: true,
-      data: transformedCustomer,
+      data: customer,
       message: 'Cập nhật khách hàng thành công',
     });
   } catch (error) {
-    console.error('Error updating customer:', error);
+    console.error('Update customer error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi cập nhật khách hàng',
-      error: error.message,
+      message: 'Lỗi server khi cập nhật khách hàng',
     });
   }
 };
 
-// Xóa khách hàng
+// Delete customer
 const deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existingCustomer = await prisma.khachHang.findUnique({
+    // Check if customer exists
+    const customer = await prisma.khachHang.findUnique({
       where: { maKH: parseInt(id) },
-      include: { hoadon: true },
     });
 
-    if (!existingCustomer) {
+    if (!customer) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy khách hàng',
       });
     }
 
-    // Kiểm tra xem khách hàng có hóa đơn không
-    if (existingCustomer.hoadon.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không thể xóa khách hàng đã có lịch sử mua hàng',
-      });
-    }
-
+    // Delete customer
     await prisma.khachHang.delete({
       where: { maKH: parseInt(id) },
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: 'Xóa khách hàng thành công',
     });
   } catch (error) {
-    console.error('Error deleting customer:', error);
+    console.error('Delete customer error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi xóa khách hàng',
-      error: error.message,
+      message: 'Lỗi server khi xóa khách hàng',
     });
   }
 };

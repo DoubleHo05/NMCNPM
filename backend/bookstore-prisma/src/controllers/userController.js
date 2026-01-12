@@ -132,9 +132,12 @@ const createUser = async (req, res) => {
       });
     }
 
-    // Check if username exists
-    const existingUser = await prisma.nhanVien.findUnique({
-      where: { tenDangNhap },
+    // Check if username exists (chỉ check user đang active)
+    const existingUser = await prisma.nhanVien.findFirst({
+      where: { 
+        tenDangNhap,
+        trangThai: true
+      },
     });
 
     if (existingUser) {
@@ -146,8 +149,11 @@ const createUser = async (req, res) => {
 
     // Check if email exists
     if (email) {
-      const existingEmail = await prisma.nhanVien.findUnique({
-        where: { email },
+      const existingEmail = await prisma.nhanVien.findFirst({
+        where: { 
+          email,
+          email: { not: null }
+        },
       });
 
       if (existingEmail) {
@@ -167,8 +173,8 @@ const createUser = async (req, res) => {
         tenDangNhap,
         matKhau: hashedPassword,
         hoTen,
-        email,
-        soDienThoai,
+        email: email || null,
+        soDienThoai: soDienThoai || null,
         vaiTro,
         trangThai: trangThai !== undefined ? trangThai : true,
       },
@@ -216,10 +222,14 @@ const updateUser = async (req, res) => {
       });
     }
 
-    // Check if new username is taken by another user
+    // Check if new username is taken by another user (chỉ check user active)
     if (tenDangNhap && tenDangNhap !== existingUser.tenDangNhap) {
-      const userWithSameUsername = await prisma.nhanVien.findUnique({
-        where: { tenDangNhap },
+      const userWithSameUsername = await prisma.nhanVien.findFirst({
+        where: { 
+          tenDangNhap,
+          trangThai: true,
+          maNV: { not: parseInt(id) }
+        },
       });
 
       if (userWithSameUsername) {
@@ -232,8 +242,11 @@ const updateUser = async (req, res) => {
 
     // Check if new email is taken by another user
     if (email && email !== existingUser.email) {
-      const userWithSameEmail = await prisma.nhanVien.findUnique({
-        where: { email },
+      const userWithSameEmail = await prisma.nhanVien.findFirst({
+        where: { 
+          email,
+          maNV: { not: parseInt(id) }
+        },
       });
 
       if (userWithSameEmail) {
@@ -248,8 +261,8 @@ const updateUser = async (req, res) => {
     const updateData = {
       ...(hoTen && { hoTen }),
       ...(tenDangNhap && { tenDangNhap }),
-      ...(email !== undefined && { email }),
-      ...(soDienThoai !== undefined && { soDienThoai }),
+      ...(email !== undefined && { email: email || null }),
+      ...(soDienThoai !== undefined && { soDienThoai: soDienThoai || null }),
       ...(vaiTro && { vaiTro }),
       ...(trangThai !== undefined && { trangThai }),
     };
@@ -306,18 +319,25 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    // Prevent deleting yourself
-    if (user.maNV === req.user.maNV) {
+    // Prevent deleting yourself (chỉ check khi có req.user)
+    if (req.user && user.maNV === req.user.maNV) {
       return res.status(400).json({
         success: false,
         message: 'Không thể xóa tài khoản của chính bạn',
       });
     }
 
-    // Soft delete by setting trangThai to false
+    // Soft delete by setting trangThai to false and rename username to avoid unique constraint
+    const deletedUsername = `${user.tenDangNhap}_deleted_${Date.now()}`;
+    const deletedEmail = user.email ? `${user.email}_deleted_${Date.now()}` : null;
+    
     await prisma.nhanVien.update({
       where: { maNV: parseInt(id) },
-      data: { trangThai: false },
+      data: { 
+        trangThai: false,
+        tenDangNhap: deletedUsername,
+        email: deletedEmail
+      },
     });
 
     res.status(200).json({
