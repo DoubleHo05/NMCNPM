@@ -3,7 +3,8 @@ import type { Book, Customer, ImportTicket, Invoice, PaymentReceipt, SystemRules
 import { INITIAL_BOOKS, INITIAL_CUSTOMERS, INITIAL_RULES } from '../constants';
 import { inventoryService } from '../services/inventoryService';
 import { settingService, type Setting } from '../services/settingService';
-import { bookService } from '../services/bookService'; // [NEW]
+import { bookService } from '../services/bookService';
+import { getAllCustomers } from '../services/customerService';
 import { useAuth } from './AuthContext';
 
 interface StoreContextType {
@@ -90,9 +91,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // [NEW] Fetch Books from Real DB
         const booksRes = await bookService.getAllBooks();
         if (booksRes && (booksRes as any).success) {
-          // Map backend data to frontend Book interface if needed, or assume controller formatted it
-          // Controller returns { data: [...] }
-          setBooks((booksRes as any).data);
+          // Map backend data to frontend Book interface
+          const apiBooks = (booksRes as any).data || [];
+          const mappedBooks: Book[] = apiBooks.map((b: any) => ({
+            id: b.id || b.maSach?.toString() || '',
+            title: b.title || b.tenSach || '',
+            category: b.category || b.theLoai || '',
+            author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || ''),
+            stock: b.stock ?? b.soLuongTon ?? 0,
+            price: b.salePrice || b.price || b.giaBanLe || 0,
+            publisher: b.publisher || b.nhaXuatBan || '',
+            publishYear: b.publishYear || new Date().getFullYear(),
+            imageUrl: b.imageUrl || b.hinhAnh || '',
+            description: b.description || b.moTa || '',
+          }));
+          setBooks(mappedBooks);
+        }
+
+        // Fetch Customers from Real DB
+        try {
+          const customersData = await getAllCustomers();
+          const mappedCustomers: Customer[] = customersData.map((c: any) => ({
+            id: c.maKH?.toString() || c.id || '',
+            name: c.tenKH || c.name || '',
+            phone: c.soDienThoai || c.phone || '',
+            address: c.diaChi || c.address || '',
+            email: c.email || '',
+            currentDebt: c.tienNo ?? c.currentDebt ?? 0, // Database dropped TienNo, default to 0
+            loyaltyPoints: c.diemTichLuy ?? c.loyaltyPoints ?? 0,
+          }));
+          setCustomers(mappedCustomers);
+        } catch (customerErr) {
+          console.error('Failed to fetch customers, using defaults:', customerErr);
+          // Keep INITIAL_CUSTOMERS as fallback
         }
 
       } catch (error) {

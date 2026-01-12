@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, optionalAuth } = require('../middleware/auth');
+const {
+  getAllBooks,
+  getBookById,
+  searchBooks,
+} = require('../controllers/bookController');
 
-// Placeholder routes - sẽ được bổ sung sau
-router.get('/', authMiddleware, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Books API - Đang phát triển',
-    data: []
-  });
-});
+// Public routes - không cần đăng nhập để xem sách
+router.get('/', getAllBooks);
+router.get('/search', searchBooks);
+router.get('/:id', getBookById);
 
 module.exports = router;

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
+// Import all routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const bookRoutes = require('./routes/bookRoutes');
@@ -9,6 +10,11 @@ const customerRoutes = require('./routes/customerRoutes');
 const rulesRoutes = require('./routes/rulesRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const settingRoutes = require('./routes/settingRoutes');
+const importRoutes = require('./routes/importRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -33,10 +39,16 @@ app.get('/', (req, res) => {
       rules: '/api/rules',
       inventory: '/api/inventory',
       settings: '/api/settings',
+      imports: '/api/imports',
+      invoices: '/api/invoices',
+      categories: '/api/categories',
+      payments: '/api/payments',
+      stats: '/api/stats',
     },
   });
 });
 
+// Register all routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
@@ -44,7 +56,13 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/imports', importRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/stats', statsRoutes);
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -52,6 +70,7 @@ app.use((req, res) => {
   });
 });
 
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({

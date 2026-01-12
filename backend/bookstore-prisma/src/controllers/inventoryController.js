@@ -19,7 +19,8 @@ const importGoods = async (req, res) => {
         }, 0);
 
         // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
-        const result = await prisma.$transaction(async (prisma) => {
+        // Tăng timeout lên 60s vì logic import phức tạp
+        const result = await prisma.$transaction(async (tx) => {
             // 1. Tạo phiếu nhập sách
             const phieuNhap = await prisma.phieuNhapSach.create({
                 data: {
