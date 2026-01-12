@@ -3,6 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X, UploadCloud } from 'lucide-react';
 import type { Book } from '../types';
+import { getAllCategories, type Category } from '../services/categoryService';
 
 const BookForm: React.FC = () => {
     const { id } = useParams();
@@ -27,6 +28,20 @@ const BookForm: React.FC = () => {
     };
 
     const [formData, setFormData] = useState<Book>(initialFormState);
+    const [categories, setCategories] = useState<Category[]>([]);
+
+    // Fetch categories from database
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const cats = await getAllCategories();
+                setCategories(cats);
+            } catch (error) {
+                console.error('Failed to fetch categories:', error);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     useEffect(() => {
         if (isEditMode && id) {
@@ -138,11 +153,9 @@ const BookForm: React.FC = () => {
                                     onChange={e => handleChange('category', e.target.value)}
                                 >
                                     <option value="">Chọn thể loại</option>
-                                    <option value="Văn học">Văn học</option>
-                                    <option value="Kinh tế">Kinh tế</option>
-                                    <option value="Thiếu nhi">Thiếu nhi</option>
-                                    <option value="Kỹ năng">Kỹ năng</option>
-                                    <option value="Giáo khoa">Giáo khoa</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div>

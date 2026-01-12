@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -6,6 +6,7 @@ import { Plus, Trash2, AlertCircle, Save, X, UploadCloud, Minus, History, FilePl
 import type { Book } from '../types';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from '../components/DatePicker';
+import { getAllCategories, type Category } from '../services/categoryService';
 
 interface ImportItem {
   id: string; // Temporary ID for list management
@@ -138,7 +139,21 @@ const BookImport: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
+  const [categories, setCategories] = useState<Category[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Fetch categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const cats = await getAllCategories();
+        setCategories(cats);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -184,7 +199,7 @@ const BookImport: React.FC = () => {
   const initialBookState: Book = {
     id: '',
     title: '',
-    category: 'Văn học',
+    category: categories.length > 0 ? categories[0].name : '',
     author: '',
     stock: 0,
     price: 0,
@@ -406,11 +421,13 @@ const BookImport: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">Thể loại</label>
                           <select className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" value={currentBook.category} onChange={e => handleModalChange('category', e.target.value)}>
-                            <option value="Văn học">Văn học</option>
-                            <option value="Kinh tế">Kinh tế</option>
-                            <option value="Thiếu nhi">Thiếu nhi</option>
-                            <option value="Kỹ năng">Kỹ năng</option>
-                            <option value="Giáo khoa">Giáo khoa</option>
+                            {categories.length > 0 ? (
+                              categories.map(cat => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                              ))
+                            ) : (
+                              <option value="">Đang tải...</option>
+                            )}
                           </select>
                         </div>
                         <div>
