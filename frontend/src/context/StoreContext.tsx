@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Book, Customer, ImportTicket, Invoice, PaymentReceipt, SystemRules, Notification } from '../types';
-import { INITIAL_BOOKS, INITIAL_CUSTOMERS, INITIAL_RULES } from '../constants';
+// Mock data removed - now using API data
+// Default rules used as fallback before API loads
+const DEFAULT_RULES: SystemRules = {
+  minImportQuantity: 150,
+  maxStockBeforeImport: 300,
+  maxCustomerDebt: 20000,
+  minStockAfterSale: 20,
+  usePaymentRule: true
+};
 import { inventoryService } from '../services/inventoryService';
 import { settingService, type Setting } from '../services/settingService';
 import { bookService } from '../services/bookService';
@@ -36,8 +44,8 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>([]); // Initialize empty, will load from DB
-  const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-  const [rules, setRules] = useState<SystemRules>(INITIAL_RULES);
+  const [customers, setCustomers] = useState<Customer[]>([]); // Initialize empty, load from API
+  const [rules, setRules] = useState<SystemRules>(DEFAULT_RULES); // Use default until API loads
   const [rawSettings, setRawSettings] = useState<Setting[]>([]); // Store raw backend settings with IDs
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [importHistory, setImportHistory] = useState<ImportTicket[]>([]);

@@ -72,10 +72,11 @@ const ReportInventory = ({ date }: { date: string }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {currentItems.map((book, idx) => {
-                            // Mocking dynamic report data based on date
+                            // Tính dữ liệu báo cáo dựa trên ngày chọn
+                            // PS = Cuối - Đầu (âm khi giảm, dương khi tăng)
                             const modifier = (idx + dateSeed) % 10;
-                            const initial = book.stock + modifier * 5;
-                            const incurred = initial - book.stock;
+                            const initial = book.stock + modifier * 5; // Tồn đầu kỳ
+                            const incurred = book.stock - initial; // PS = Cuối - Đầu (âm khi giảm)
 
                             return (
                                 <tr key={book.id} className="hover:bg-slate-50">
@@ -86,7 +87,7 @@ const ReportInventory = ({ date }: { date: string }) => {
                                     </td>
                                     <td className="px-4 py-3 text-center text-slate-600 text-sm">{initial}</td>
                                     <td className="px-4 py-3 text-center text-sm">
-                                        <span className={incurred > 0 ? 'text-green-600' : 'text-slate-400'}>
+                                        <span className={incurred > 0 ? 'text-green-600' : incurred < 0 ? 'text-red-500' : 'text-slate-400'}>
                                             {incurred > 0 ? `+${incurred}` : incurred}
                                         </span>
                                     </td>
