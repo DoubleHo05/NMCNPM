@@ -16,6 +16,11 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
 import UserManagement from './pages/UserManagement';
+import RevenueReport from './pages/RevenueReport';
+import PublisherManagement from './pages/PublisherManagement';
+import AuthorManagement from './pages/AuthorManagement';
+import CategoryManagement from './pages/CategoryManagement';
+import ChangePassword from './pages/ChangePassword';
 
 // Import Admin pages
 import UserManagementAdmin from './pages/admin/UserManagement';
@@ -96,6 +101,11 @@ const AppContent: React.FC = () => {
                     <WarehouseListPage />
                   </ProtectedRoute>
                 } />
+                <Route path="/reports/revenue" element={<RevenueReport />} />
+                <Route path="/manage/publishers" element={<PublisherManagement />} />
+                <Route path="/manage/authors" element={<AuthorManagement />} />
+                <Route path="/manage/categories" element={<CategoryManagement />} />
+                <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/account" element={<AccountSettings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

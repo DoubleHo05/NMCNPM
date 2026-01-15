@@ -43,7 +43,7 @@ const getDashboardStats = async (req, res) => {
 
     // Tạo array 12 tháng với giá trị 0 cho tháng không có dữ liệu
     const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-                        'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+      'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
     const salesData = monthNames.map((name, idx) => {
       const monthData = monthlyRevenue.find(m => Number(m.month) === idx + 1);
       return {
@@ -273,8 +273,111 @@ const getDebtReport = async (req, res) => {
   }
 };
 
+// Báo cáo doanh thu (mới)
+const getRevenueReport = async (req, res) => {
+  try {
+    const { startDate, endDate, groupBy } = req.query;
+
+    // Default to current year if no dates provided
+    const currentYear = new Date().getFullYear();
+    const start = startDate || `${currentYear}-01-01`;
+    const end = endDate || `${currentYear}-12-31`;
+
+    // Revenue by period
+    const revenueData = await prisma.$queryRaw`
+      SELECT 
+        DATE(NgayBan) as date,
+        COUNT(*) as totalInvoices,
+        SUM(TongTien) as revenue,
+        SUM(TongTien - COALESCE(TienGiamGia, 0)) as netRevenue
+      FROM hoadonbansach
+      WHERE NgayBan BETWEEN ${start} AND ${end}
+      GROUP BY DATE(NgayBan)
+      ORDER BY date
+    `;
+
+    // Monthly summary
+    const monthlySummary = await prisma.$queryRaw`
+      SELECT 
+        MONTH(NgayBan) as month,
+        YEAR(NgayBan) as year,
+        COUNT(*) as totalInvoices,
+        SUM(TongTien) as revenue
+      FROM hoadonbansach
+      WHERE NgayBan BETWEEN ${start} AND ${end}
+      GROUP BY YEAR(NgayBan), MONTH(NgayBan)
+      ORDER BY year, month
+    `;
+
+    // Top selling books in period
+    const topProducts = await prisma.$queryRaw`
+      SELECT 
+        s.MaSach as id,
+        s.TenSach as title,
+        SUM(ct.SoLuongBan) as quantitySold,
+        SUM(ct.SoLuongBan * ct.GiaBan) as revenue
+      FROM chitiethoadon ct
+      JOIN sach s ON ct.MaSach = s.MaSach
+      JOIN hoadonbansach h ON ct.MaHoaDon = h.MaHoaDon
+      WHERE h.NgayBan BETWEEN ${start} AND ${end}
+      GROUP BY s.MaSach
+      ORDER BY revenue DESC
+      LIMIT 10
+    `;
+
+    // Total summary
+    const totalSummary = await prisma.$queryRaw`
+      SELECT 
+        COUNT(*) as totalInvoices,
+        COALESCE(SUM(TongTien), 0) as totalRevenue,
+        COALESCE(AVG(TongTien), 0) as avgOrderValue
+      FROM hoadonbansach
+      WHERE NgayBan BETWEEN ${start} AND ${end}
+    `;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalInvoices: Number(totalSummary[0]?.totalInvoices) || 0,
+          totalRevenue: Number(totalSummary[0]?.totalRevenue) || 0,
+          avgOrderValue: Number(totalSummary[0]?.avgOrderValue) || 0,
+          startDate: start,
+          endDate: end
+        },
+        dailyRevenue: revenueData.map(d => ({
+          date: d.date,
+          invoices: Number(d.totalInvoices),
+          revenue: Number(d.revenue),
+          netRevenue: Number(d.netRevenue)
+        })),
+        monthlyRevenue: monthlySummary.map(m => ({
+          month: Number(m.month),
+          year: Number(m.year),
+          invoices: Number(m.totalInvoices),
+          revenue: Number(m.revenue)
+        })),
+        topProducts: topProducts.map(p => ({
+          id: String(p.id),
+          title: p.title,
+          quantitySold: Number(p.quantitySold),
+          revenue: Number(p.revenue)
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error getting revenue report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy báo cáo doanh thu',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getInventoryReport,
-  getDebtReport
+  getDebtReport,
+  getRevenueReport
 };

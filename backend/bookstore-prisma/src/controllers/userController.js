@@ -134,7 +134,7 @@ const createUser = async (req, res) => {
 
     // Check if username exists (chỉ check user đang active)
     const existingUser = await prisma.nhanVien.findFirst({
-      where: { 
+      where: {
         tenDangNhap,
         trangThai: true
       },
@@ -150,7 +150,7 @@ const createUser = async (req, res) => {
     // Check if email exists
     if (email) {
       const existingEmail = await prisma.nhanVien.findFirst({
-        where: { 
+        where: {
           email,
           email: { not: null }
         },
@@ -225,7 +225,7 @@ const updateUser = async (req, res) => {
     // Check if new username is taken by another user (chỉ check user active)
     if (tenDangNhap && tenDangNhap !== existingUser.tenDangNhap) {
       const userWithSameUsername = await prisma.nhanVien.findFirst({
-        where: { 
+        where: {
           tenDangNhap,
           trangThai: true,
           maNV: { not: parseInt(id) }
@@ -243,7 +243,7 @@ const updateUser = async (req, res) => {
     // Check if new email is taken by another user
     if (email && email !== existingUser.email) {
       const userWithSameEmail = await prisma.nhanVien.findFirst({
-        where: { 
+        where: {
           email,
           maNV: { not: parseInt(id) }
         },
@@ -330,10 +330,10 @@ const deleteUser = async (req, res) => {
     // Soft delete by setting trangThai to false and rename username to avoid unique constraint
     const deletedUsername = `${user.tenDangNhap}_deleted_${Date.now()}`;
     const deletedEmail = user.email ? `${user.email}_deleted_${Date.now()}` : null;
-    
+
     await prisma.nhanVien.update({
       where: { maNV: parseInt(id) },
-      data: { 
+      data: {
         trangThai: false,
         tenDangNhap: deletedUsername,
         email: deletedEmail
@@ -409,6 +409,69 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
+// Change password (for current user)
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.maNV;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+      });
+    }
+
+    // Get current user
+    const user = await prisma.nhanVien.findUnique({
+      where: { maNV: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.matKhau);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu hiện tại không đúng',
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await prisma.nhanVien.update({
+      where: { maNV: userId },
+      data: { matKhau: hashedPassword },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Đổi mật khẩu thành công',
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đổi mật khẩu',
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -416,4 +479,5 @@ module.exports = {
   updateUser,
   deleteUser,
   updateUserStatus,
+  changePassword,
 };

@@ -78,6 +78,18 @@ const InvoiceCreate: React.FC = () => {
     }).filter(item => item.quantity > 0));
   };
 
+  const handleSetQuantity = (bookId: string, newQuantity: number) => {
+    setItems(prev => prev.map(item => {
+      if (item.bookId === bookId) {
+        const book = books.find(b => b.id === bookId);
+        const maxStock = book ? book.stock : 0;
+        const qty = Math.min(Math.max(1, newQuantity), maxStock);
+        return { ...item, quantity: qty };
+      }
+      return item;
+    }));
+  };
+
   const handleRemoveFromCart = (bookId: string) => {
     setItems(prev => prev.filter(i => i.bookId !== bookId));
   };
@@ -265,7 +277,14 @@ const InvoiceCreate: React.FC = () => {
                         {/* Qty Controls */}
                         <div className="flex items-center bg-white rounded border border-slate-300 h-7 overflow-hidden">
                           <button onClick={() => handleUpdateQuantity(item.bookId, -1)} className="px-2 hover:bg-slate-100 text-slate-600"><Minus size={12} /></button>
-                          <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={book.stock}
+                            value={item.quantity}
+                            onChange={(e) => handleSetQuantity(item.bookId, parseInt(e.target.value) || 1)}
+                            className="w-10 text-center text-xs font-bold border-x border-slate-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
                           <button onClick={() => handleUpdateQuantity(item.bookId, 1)} className="px-2 hover:bg-slate-100 text-slate-600"><Plus size={12} /></button>
                         </div>
                         <button onClick={() => handleRemoveFromCart(item.bookId)} className="text-slate-400 hover:text-red-500 transition-colors">

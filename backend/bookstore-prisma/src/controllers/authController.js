@@ -74,6 +74,85 @@ const login = async (req, res) => {
   }
 };
 
+const register = async (req, res) => {
+  try {
+    const { tenDangNhap, matKhau, hoTen, email, soDienThoai, vaiTro } = req.body;
+
+    // Validate required fields
+    if (!tenDangNhap || !matKhau || !hoTen) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập đầy đủ thông tin bắt buộc (tên đăng nhập, mật khẩu, họ tên)',
+      });
+    }
+
+    // Check if username already exists
+    const existingUser = await prisma.nhanVien.findUnique({
+      where: { tenDangNhap },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Tên đăng nhập đã tồn tại',
+      });
+    }
+
+    // Check if email already exists (if provided)
+    if (email) {
+      const existingEmail = await prisma.nhanVien.findUnique({
+        where: { email },
+      });
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email đã được sử dụng',
+        });
+      }
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(matKhau, 10);
+
+    // Validate role
+    const validRoles = ['THU_KHO', 'THU_NGAN', 'QUAN_LY'];
+    const userRole = validRoles.includes(vaiTro) ? vaiTro : 'THU_NGAN'; // Default to THU_NGAN
+
+    // Create new user
+    const newUser = await prisma.nhanVien.create({
+      data: {
+        tenDangNhap,
+        matKhau: hashedPassword,
+        hoTen,
+        email: email || null,
+        soDienThoai: soDienThoai || null,
+        vaiTro: userRole,
+        trangThai: true,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký thành công',
+      data: {
+        user: {
+          maNV: newUser.maNV,
+          tenDangNhap: newUser.tenDangNhap,
+          hoTen: newUser.hoTen,
+          email: newUser.email,
+          vaiTro: newUser.vaiTro,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đăng ký',
+    });
+  }
+};
+
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -168,6 +247,7 @@ const logout = async (req, res) => {
 
 module.exports = {
   login,
+  register,
   refreshToken,
   getCurrentUser,
   logout,

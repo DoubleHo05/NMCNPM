@@ -34,8 +34,8 @@ const SidebarItem = ({ to, icon: Icon, label, exact, excludePaths = [] }: { to: 
     <Link
       to={to}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${isActive
-          ? 'bg-blue-50 text-blue-700 font-semibold'
-          : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+        ? 'bg-blue-50 text-blue-700 font-semibold'
+        : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
         }`}
     >
       <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
@@ -57,6 +57,39 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
 
   // Check if user is manager
   const isManager = user?.vaiTro === 'QUAN_LY';
+
+  // Get initials from full name: "Nguyễn Văn B" -> "NB" (first letter + last word's first letter)
+  const getInitials = (fullName: string | undefined) => {
+    if (!fullName) return 'U';
+    const parts = fullName.trim().split(' ').filter(p => p);
+    if (parts.length === 0) return 'U';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    // First letter of first word + first letter of last word
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  // Get display name (last word of full name)
+  const getDisplayName = (fullName: string | undefined) => {
+    if (!fullName) return 'User';
+    const parts = fullName.trim().split(' ').filter(p => p);
+    return parts.length > 0 ? parts[parts.length - 1] : 'User';
+  };
+
+  // Get role display name
+  const getRoleDisplay = (role: string | undefined) => {
+    switch (role) {
+      case 'QUAN_LY': return 'Quản lý';
+      case 'THU_KHO': return 'Thủ kho';
+      case 'THU_NGAN': return 'Thu ngân';
+      default: return 'Nhân viên';
+    }
+  };
+
+  const userInitials = getInitials(user?.hoTen);
+  const userDisplayName = getDisplayName(user?.hoTen);
+  const userRoleDisplay = getRoleDisplay(user?.vaiTro);
+  const userEmail = user?.email || 'user@bookstore.com';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userInitials)}&background=0D8ABC&color=fff`;
 
   // -- Dropdown Menu State --
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -188,7 +221,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
             </>
           )}
           <SidebarItem to="/reports" icon={FileText} label="Báo cáo (BM5)" />
+          <SidebarItem to="/reports/revenue" icon={DollarSign} label="Báo cáo Doanh thu" />
           <SidebarItem to="/settings" icon={Settings} label="Quy định (QĐ6)" />
+          <SidebarItem to="/manage/categories" icon={Book} label="Thể loại" />
         </nav>
 
         <div className="p-4 border-t border-slate-100">
@@ -197,11 +232,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
             className={`flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${location.pathname.includes('account') ? 'bg-slate-50' : ''}`}
           >
             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 overflow-hidden">
-              <img src="https://ui-avatars.com/api/?name=Nguyen+Admin&background=0D8ABC&color=fff" alt="Admin" className="w-full h-full object-cover" />
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">Nguyen Admin</p>
-              <p className="text-xs text-slate-500 truncate">admin@bookstore.com</p>
+              <p className="text-sm font-medium text-slate-900 truncate">{user?.hoTen || 'Người dùng'}</p>
+              <p className="text-xs text-slate-500 truncate">{userEmail}</p>
             </div>
           </div>
         </div>
@@ -350,11 +385,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
                 title="Vào trang cài đặt tài khoản"
               >
                 <div className="w-8 h-8 rounded bg-slate-200 overflow-hidden">
-                  <img src="https://ui-avatars.com/api/?name=Nguyen+Admin&background=0D8ABC&color=fff" alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
                 <div className="hidden sm:block">
-                  <p className="text-sm font-bold text-slate-900 leading-none">Nguyen</p>
-                  <p className="text-xs text-slate-500">Admin</p>
+                  <p className="text-sm font-bold text-slate-900 leading-none">{userDisplayName}</p>
+                  <p className="text-xs text-slate-500">{userRoleDisplay}</p>
                 </div>
               </div>
 
@@ -374,8 +409,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
                 <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="p-2">
                     <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                      <p className="text-sm font-bold text-slate-800">Nguyen Admin</p>
-                      <p className="text-xs text-slate-500 truncate">admin@bookstore.com</p>
+                      <p className="text-sm font-bold text-slate-800">{user?.hoTen || 'Người dùng'}</p>
+                      <p className="text-xs text-slate-500 truncate">{userEmail}</p>
                     </div>
 
                     <button

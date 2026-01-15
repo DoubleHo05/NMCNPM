@@ -44,7 +44,8 @@ exports.getAllBooks = async (req, res) => {
       salePrice: parseFloat(book.giaBanLe),
       stock: book.soLuongTon,
       description: book.moTa,
-      barcode: book.barcode
+      barcode: book.barcode,
+      imageUrl: book.hinhAnh || null
     }));
 
     res.status(200).json({
@@ -105,7 +106,8 @@ exports.getBookById = async (req, res) => {
         salePrice: parseFloat(book.giaBanLe),
         stock: book.soLuongTon,
         description: book.moTa,
-        barcode: book.barcode
+        barcode: book.barcode,
+        imageUrl: book.hinhAnh || null
       }
     });
   } catch (error) {
@@ -124,7 +126,7 @@ exports.getBookById = async (req, res) => {
 exports.searchBooks = async (req, res) => {
   try {
     const { q } = req.query;
-    
+
     if (!q) {
       return exports.getAllBooks(req, res);
     }

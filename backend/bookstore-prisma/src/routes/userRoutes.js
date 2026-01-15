@@ -15,4 +15,8 @@ router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 router.patch('/:id/status', userController.updateUserStatus);
 
+// Change password route (requires authentication)
+const { authMiddleware: authMw } = require('../middleware/auth');
+router.put('/change-password', authMw, userController.changePassword);
+
 module.exports = router;

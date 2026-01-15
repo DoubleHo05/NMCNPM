@@ -15,6 +15,8 @@ const invoiceRoutes = require('./routes/invoiceRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const publisherRoutes = require('./routes/publisherRoutes');
+const authorRoutes = require('./routes/authorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +46,8 @@ app.get('/', (req, res) => {
       categories: '/api/categories',
       payments: '/api/payments',
       stats: '/api/stats',
+      publishers: '/api/publishers',
+      authors: '/api/authors',
     },
   });
 });
@@ -61,6 +65,8 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/publishers', publisherRoutes);
+app.use('/api/authors', authorRoutes);
 
 // 404 handler
 app.use((req, res) => {

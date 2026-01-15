@@ -73,7 +73,8 @@ async function main() {
       maNXB: nxb1.maNXB,
       giaNhap: 70000,
       giaBanLe: 110000,
-      soLuongTon: 100
+      soLuongTon: 100,
+      hinhAnh: 'https://cdn0.fahasa.com/media/catalog/product/8/9/8935235228276.jpg'
     }
   });
 

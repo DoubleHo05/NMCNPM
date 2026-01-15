@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDashboardStats, getInventoryReport, getDebtReport } = require('../controllers/statsController');
+const { getDashboardStats, getInventoryReport, getDebtReport, getRevenueReport } = require('../controllers/statsController');
 
 // Dashboard stats
 router.get('/dashboard', getDashboardStats);
@@ -10,5 +10,8 @@ router.get('/inventory', getInventoryReport);
 
 // Báo cáo công nợ (BM5.2)
 router.get('/debt', getDebtReport);
+
+// Báo cáo doanh thu
+router.get('/revenue', getRevenueReport);
 
 module.exports = router;

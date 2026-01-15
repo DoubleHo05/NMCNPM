@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, UploadCloud } from 'lucide-react';
+import { X, UploadCloud, Plus, Loader2 } from 'lucide-react';
 import type { Book } from '../types';
 import { getAllCategories, type Category } from '../services/categoryService';
 
@@ -29,19 +29,47 @@ const BookForm: React.FC = () => {
 
     const [formData, setFormData] = useState<Book>(initialFormState);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [creatingCategory, setCreatingCategory] = useState(false);
 
     // Fetch categories from database
+    const fetchCategories = async () => {
+        try {
+            const cats = await getAllCategories();
+            setCategories(cats);
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
+        }
+    };
+
     useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                const cats = await getAllCategories();
-                setCategories(cats);
-            } catch (error) {
-                console.error('Failed to fetch categories:', error);
-            }
-        };
         fetchCategories();
     }, []);
+
+    const handleCreateCategory = async () => {
+        if (!newCategoryName.trim()) return;
+        setCreatingCategory(true);
+        try {
+            const token = localStorage.getItem('accessToken');
+            const res = await fetch('http://localhost:5000/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ name: newCategoryName.trim() })
+            });
+            const data = await res.json();
+            if (data.success) {
+                await fetchCategories();
+                handleChange('category', newCategoryName.trim());
+                setNewCategoryName('');
+                setShowNewCategoryInput(false);
+            }
+        } catch (err) {
+            console.error('Error creating category:', err);
+        } finally {
+            setCreatingCategory(false);
+        }
+    };
 
     useEffect(() => {
         if (isEditMode && id) {
@@ -147,16 +175,57 @@ const BookForm: React.FC = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Thể loại</label>
-                                <select
-                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={formData.category}
-                                    onChange={e => handleChange('category', e.target.value)}
-                                >
-                                    <option value="">Chọn thể loại</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                    ))}
-                                </select>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="flex-1 p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={formData.category}
+                                        onChange={e => handleChange('category', e.target.value)}
+                                    >
+                                        <option value="">Chọn thể loại</option>
+                                        {categories.map(cat => (
+                                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewCategoryInput(true)}
+                                        className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        title="Thêm thể loại mới"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                </div>
+                                {/* Inline New Category Input */}
+                                {showNewCategoryInput && (
+                                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                        <p className="text-xs font-medium text-slate-600 mb-2">Thêm thể loại mới:</p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={newCategoryName}
+                                                onChange={e => setNewCategoryName(e.target.value)}
+                                                placeholder="Tên thể loại..."
+                                                className="flex-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                                autoFocus
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleCreateCategory}
+                                                disabled={creatingCategory || !newCategoryName.trim()}
+                                                className="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                                            >
+                                                {creatingCategory ? <Loader2 size={14} className="animate-spin" /> : 'Thêm'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowNewCategoryInput(false); setNewCategoryName(''); }}
+                                                className="px-3 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-100"
+                                            >
+                                                Hủy
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Giá tiền (VNĐ)</label>
