@@ -333,7 +333,16 @@ const BookList: React.FC = () => {
                                     <td className="px-6 py-4 min-w-[250px]">
                                         <div className="flex items-start gap-3">
                                             <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden flex-shrink-0 border border-slate-200">
-                                                <img src={book.imageUrl} alt="" className="w-full h-full object-cover" />
+                                                <img
+                                                    src={(book.imageUrl && book.imageUrl.startsWith('['))
+                                                        ? JSON.parse(book.imageUrl)[0]
+                                                        : (book.imageUrl || 'https://placehold.co/40x60?text=No+Image')}
+                                                    alt=""
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = 'https://placehold.co/40x60?text=Error';
+                                                    }}
+                                                />
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="font-semibold text-blue-600 text-xs mb-0.5">{book.id}</span>
