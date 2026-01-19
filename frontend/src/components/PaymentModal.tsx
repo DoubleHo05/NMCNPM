@@ -10,6 +10,13 @@ interface PaymentModalProps {
     onConfirmPayment: (amountPaid: number) => void;
     isProcessing: boolean;
     completedInvoiceId: string | null;
+    lastSuccessData?: {
+        invoiceId: string;
+        customerName: string;
+        totalAmount: number;
+        amountPaid: number;
+        remainingDebt: number;
+    } | null;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -19,7 +26,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     customer,
     onConfirmPayment,
     isProcessing,
-    completedInvoiceId
+    completedInvoiceId,
+    lastSuccessData
 }) => {
     const [amountReceived, setAmountReceived] = useState<string>('');
     const [showInvoice, setShowInvoice] = useState(false);
@@ -51,7 +59,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
 
     // Success / Print View
-    if (completedInvoiceId && showInvoice) {
+    if (completedInvoiceId && showInvoice && lastSuccessData) {
         return (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl transform transition-all scale-100">
@@ -66,28 +74,35 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     <div className="bg-slate-50 p-4 rounded-xl space-y-3 mb-6 border border-slate-100">
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-600">Khách hàng</span>
-                            <span className="font-medium text-slate-900">{customer?.name}</span>
+                            <span className="font-medium text-slate-900">{lastSuccessData.customerName}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-600">Tổng tiền</span>
-                            <span className="font-bold text-slate-900">{formatCurrency(totalAmount)}đ</span>
+                            <span className="font-bold text-slate-900">{formatCurrency(lastSuccessData.totalAmount)}đ</span>
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-600">Khách đưa</span>
-                            <span className="font-medium text-slate-900">{formatCurrency(received)}đ</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(lastSuccessData.amountPaid)}đ</span>
                         </div>
+
                         <div className="border-t border-slate-200 pt-2">
-                            {change >= 0 ? (
+                            {lastSuccessData.amountPaid >= lastSuccessData.totalAmount ? (
                                 <div className="flex justify-between text-base">
                                     <span className="font-semibold text-slate-700">Tiền thừa</span>
-                                    <span className="font-bold text-green-600">{formatCurrency(change)}đ</span>
+                                    <span className="font-bold text-green-600">{formatCurrency(lastSuccessData.amountPaid - lastSuccessData.totalAmount)}đ</span>
                                 </div>
                             ) : (
                                 <div className="flex justify-between text-base">
-                                    <span className="font-semibold text-red-600">Ghi nợ</span>
-                                    <span className="font-bold text-red-600">{formatCurrency(debtAmount)}đ</span>
+                                    <span className="font-semibold text-red-600">Ghi nợ thêm</span>
+                                    <span className="font-bold text-red-600">{formatCurrency(lastSuccessData.totalAmount - lastSuccessData.amountPaid)}đ</span>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Remaining Debt Display */}
+                        <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between text-base">
+                            <span className="font-semibold text-slate-700">Nợ sau thanh toán</span>
+                            <span className="font-bold text-amber-600">{formatCurrency(lastSuccessData.remainingDebt)}đ</span>
                         </div>
                     </div>
 

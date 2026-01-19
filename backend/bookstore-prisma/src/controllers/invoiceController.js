@@ -21,10 +21,20 @@ const getAllInvoices = async (req, res) => {
             sach: {
               select: {
                 tenSach: true,
+                theLoai: {
+                  select: {
+                    tenTheLoai: true
+                  }
+                }
               },
             },
           },
         },
+      },
+      where: {
+        tongTien: {
+          gt: 0
+        }
       },
       orderBy: {
         ngayBan: 'desc',
@@ -44,6 +54,7 @@ const getAllInvoices = async (req, res) => {
       items: inv.chiTiet.map((ct) => ({
         bookId: ct.maSach?.toString() || '',
         bookName: ct.sach?.tenSach || 'Không rõ',
+        category: ct.sach?.theLoai?.tenTheLoai || '',
         quantity: ct.soLuongBan,
         price: parseFloat(ct.giaBan) || 0,
         total: parseFloat(ct.thanhTien) || 0,
@@ -89,6 +100,11 @@ const getInvoiceById = async (req, res) => {
             sach: {
               select: {
                 tenSach: true,
+                theLoai: {
+                  select: {
+                    tenTheLoai: true
+                  }
+                }
               },
             },
           },
@@ -116,6 +132,7 @@ const getInvoiceById = async (req, res) => {
       items: inv.chiTiet.map((ct) => ({
         bookId: ct.maSach?.toString() || '',
         bookName: ct.sach?.tenSach || 'Không rõ',
+        category: ct.sach?.theLoai?.tenTheLoai || '',
         quantity: ct.soLuongBan,
         price: parseFloat(ct.giaBan) || 0,
         total: parseFloat(ct.thanhTien) || 0,
@@ -141,6 +158,8 @@ const createInvoice = async (req, res) => {
   try {
     const { customerId, items, discount = 0 } = req.body;
     const maNV = req.user?.maNV || 1;
+
+    console.log('DEBUG INVOICE:', { customerId, items, discount, maNV });
 
     if (!items || items.length === 0) {
       return res.status(400).json({

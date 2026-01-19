@@ -7,9 +7,10 @@ services:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: bansach
     ports:
-      - "3307:3306" 
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./prisma/seed.sql:/docker-entrypoint-initdb.d/seed.sql
 
 volumes:
   mysql_data:

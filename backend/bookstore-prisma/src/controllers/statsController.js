@@ -517,7 +517,7 @@ const getAIInsights = async (req, res) => {
     const [insights, revenuePrediction, trendingBooks] = await Promise.all([
       geminiService.generateInsights(stats),
       geminiService.predictRevenue(historicalData),
-      geminiService.getTrendingBooks()
+      geminiService.getTrendingBooks(prisma)
     ]);
 
     res.json({

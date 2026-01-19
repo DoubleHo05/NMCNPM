@@ -3,15 +3,17 @@ import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, RotateCcw, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import ConfirmModal from '../components/ConfirmModal';
 
 const BookList: React.FC = () => {
   const { books, deleteBook, isLoadingBooks, booksError, refreshBooks } = useStore();
   const { canManageBooks } = usePermissions();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
+  const initialPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -44,16 +46,31 @@ const BookList: React.FC = () => {
   // Get category names for filter dropdown
   const categories = apiCategories.map(c => c.name);
 
-  // Sync with URL params
+  // Sync URL params with state
   useEffect(() => {
     const query = searchParams.get('search') || '';
-    setSearchTerm(query);
-    setCurrentPage(1);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    if (query !== searchTerm) {
+      setSearchTerm(query);
+      setCurrentPage(1);
+    } else if (page !== currentPage) {
+      setCurrentPage(page);
+    }
   }, [searchParams]);
+
+  // Update URL when page changes  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    setSearchParams(params, { replace: true });
+  };
 
   // Reset to page 1 when search/filter changes
   useEffect(() => {
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      handlePageChange(1);
+    }
   }, [searchTerm, filters]);
 
   // Filtering Logic
@@ -87,11 +104,19 @@ const BookList: React.FC = () => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentBooks = filteredBooks.slice(indexOfFirstItem, indexOfLastItem);
 
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; title: string }>({
+    isOpen: false, id: '', title: ''
+  });
+
   const handleDelete = (id: string, title: string) => {
-    if (window.confirm(`Bạn có chắc muốn xoá sách "${title}"?`)) {
-      deleteBook(id);
-    }
-  }
+    setDeleteModal({ isOpen: true, id, title });
+  };
+
+  const confirmDelete = () => {
+    deleteBook(deleteModal.id);
+    setDeleteModal({ isOpen: false, id: '', title: '' });
+  };
 
   const handleResetFilters = () => {
     setFilters({
@@ -360,7 +385,7 @@ const BookList: React.FC = () => {
                         <img src={book.imageUrl} alt="" className="w-full h-full object-cover" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-blue-600 text-xs mb-0.5">{book.id}</span>
+                        <span className="font-semibold text-blue-600 text-xs mb-0.5">{book.isbn || book.id}</span>
                         <p className="font-medium text-slate-900 text-sm leading-tight line-clamp-2">{book.title}</p>
                       </div>
                     </div>
@@ -436,14 +461,14 @@ const BookList: React.FC = () => {
             </span>
             <div className="flex gap-1">
               <button
-                onClick={() => setCurrentPage(1)}
+                onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
                 className="p-2 border border-slate-300 bg-white rounded-lg text-slate-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronsLeft size={16} />
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
                 disabled={currentPage === 1}
                 className="p-2 border border-slate-300 bg-white rounded-lg text-slate-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -455,14 +480,14 @@ const BookList: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
                 disabled={currentPage === totalPages || totalPages === 0}
                 className="p-2 border border-slate-300 bg-white rounded-lg text-slate-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight size={16} />
               </button>
               <button
-                onClick={() => setCurrentPage(totalPages)}
+                onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages || totalPages === 0}
                 className="p-2 border border-slate-300 bg-white rounded-lg text-slate-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -472,6 +497,18 @@ const BookList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xoá sách"
+        message={`Bạn có chắc muốn xoá sách "${deleteModal.title}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xoá"
+        cancelText="Huỷ"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, id: '', title: '' })}
+        variant="danger"
+      />
     </div>
   );
 };

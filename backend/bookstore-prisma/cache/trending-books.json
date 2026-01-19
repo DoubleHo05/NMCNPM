@@ -1,0 +1,35 @@
+{
+  "books": [
+    {
+      "title": "Mắt Biếc",
+      "author": "Nguyễn Nhật Ánh",
+      "isbn": "9786041234567",
+      "image": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=400&fit=crop"
+    },
+    {
+      "title": "Điểm đến của cuộc đời",
+      "author": "Đặng Hoàng Giang",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    },
+    {
+      "title": "Tuổi trẻ đáng giá bao nhiêu",
+      "author": "Rosie Nguyễn",
+      "isbn": "9786041234573",
+      "image": "https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=300&h=400&fit=crop"
+    },
+    {
+      "title": "Sông",
+      "author": "Nguyễn Ngọc Tư",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    },
+    {
+      "title": "Xin lỗi, tôi cũng là lần đầu làm người",
+      "author": "Huyền Chip",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    }
+  ],
+  "timestamp": 1768819839665
+}

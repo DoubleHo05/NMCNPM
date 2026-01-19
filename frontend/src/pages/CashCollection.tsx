@@ -37,7 +37,7 @@ const CashCollectionHistoryView: React.FC = () => {
                     <div>
                       <p className="font-bold text-slate-800">{receipt.id}</p>
                       <p className="text-xs text-slate-500">
-                        {new Date(receipt.date).toLocaleString('vi-VN')} • KH: {customer?.name || 'N/A'}
+                        {new Date(receipt.date).toLocaleString('vi-VN')} • KH: {customer?.name || receipt.customerName || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -60,8 +60,14 @@ const CashCollectionHistoryView: React.FC = () => {
 
 
 const CashCollection: React.FC = () => {
-  const { customers, collectMoney, rules, addNotification, getCustomer } = useStore();
+  const { customers, collectMoney, rules, addNotification, getCustomer, refreshCustomers } = useStore();
   const { canCollectPayment, userRole } = usePermissions();
+
+  // [NEW] Refresh data on mount to ensure latest debt is shown
+  React.useEffect(() => {
+    refreshCustomers();
+  }, []);
+
   const navigate = useNavigate();
   const [customerId, setCustomerId] = useState('');
   const [amount, setAmount] = useState<number>(0);
@@ -97,7 +103,7 @@ const CashCollection: React.FC = () => {
 
   const selectedCustomer = customers.find(c => c.id === customerId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -111,7 +117,7 @@ const CashCollection: React.FC = () => {
       return;
     }
 
-    const result = collectMoney(customerId, amount);
+    const result = await collectMoney(customerId, amount);
     if (result.success) {
       setSuccess(result.message);
 

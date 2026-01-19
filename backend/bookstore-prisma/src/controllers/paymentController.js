@@ -125,7 +125,8 @@ const createPayment = async (req, res) => {
     }
 
     // Tìm hóa đơn chưa thanh toán của khách hàng
-    const unpaidInvoice = await prisma.hoaDonBanSach.findFirst({
+    // Tìm hóa đơn chưa thanh toán của khách hàng
+    let unpaidInvoice = await prisma.hoaDonBanSach.findFirst({
       where: {
         maKH: parseInt(customerId),
       },
@@ -135,9 +136,22 @@ const createPayment = async (req, res) => {
     });
 
     if (!unpaidInvoice) {
-      return res.status(400).json({
-        success: false,
-        message: 'Khách hàng không có hóa đơn nào',
+      // FIX: Database yêu cầu phải có MaHoaDon (FK), nên nếu không tìm thấy hóa đơn nào,
+      // ta buộc phải tạo một hóa đơn "ảo" giá trị 0đ để gắn phiếu thu vào.
+      // 1. Lấy ID nhân viên bất kỳ (để không bị lỗi khóa ngoại)
+      const fallbackStaff = await prisma.nhanVien.findFirst({ select: { maNV: true } });
+      const staffId = fallbackStaff ? fallbackStaff.maNV : 1;
+
+      // 2. Tạo hóa đơn dummy
+      unpaidInvoice = await prisma.hoaDonBanSach.create({
+        data: {
+          maNV: staffId,
+          maKH: parseInt(customerId),
+          ngayBan: new Date(), // Ngày hiện tại
+          tongTien: 0,
+          thanhTien: 0,
+          tienGiamGia: 0
+        }
       });
     }
 

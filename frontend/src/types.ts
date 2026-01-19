@@ -53,6 +53,7 @@ export interface PaymentReceipt {
   id: string;
   date: string;
   customerId: string;
+  customerName?: string; // Add this field
   amount: number;
 }
 

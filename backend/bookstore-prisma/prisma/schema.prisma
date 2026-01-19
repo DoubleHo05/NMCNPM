@@ -44,6 +44,7 @@ model KhachHang {
   email       String?          @db.VarChar(100) @map("Email")
   diaChi      String?          @db.VarChar(255) @map("DiaChi")
   diemTichLuy Int?             @default(0) @map("DiemTichLuy")
+  tienNo      Decimal?         @default(0) @db.Decimal(15, 2) @map("TienNo")
   
   hoadon      HoaDonBanSach[]
 

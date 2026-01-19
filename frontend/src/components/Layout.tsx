@@ -89,7 +89,22 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
   const userDisplayName = getDisplayName(user?.hoTen);
   const userRoleDisplay = getRoleDisplay(user?.vaiTro);
   const userEmail = user?.email || 'user@bookstore.com';
-  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userInitials)}&background=0D8ABC&color=fff`;
+
+  // Check for saved avatar in localStorage first, then use generated one
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(userInitials)}&background=0D8ABC&color=fff`;
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    const saved = user?.maNV ? localStorage.getItem(`avatar_${user.maNV}`) : null;
+    return saved || defaultAvatar;
+  });
+
+  // Listen for avatar updates from AccountSettings
+  useEffect(() => {
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      setAvatarUrl(event.detail);
+    };
+    window.addEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+    return () => window.removeEventListener('avatarUpdated', handleAvatarUpdate as EventListener);
+  }, []);
 
   // -- Dropdown Menu State --
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

@@ -25,8 +25,8 @@ interface StoreContextType {
   paymentHistory: PaymentReceipt[];
   updateRules: (newRules: SystemRules) => void;
   importBooks: (items: { bookDetails: Book; quantity: number }[]) => Promise<{ success: boolean; message: string }>;
-  createInvoice: (customerId: string, items: { bookId: string; quantity: number }[]) => { success: boolean; message: string; totalAmount: number; };
-  collectMoney: (customerId: string, amount: number) => { success: boolean; message: string };
+  createInvoice: (customerId: string, items: { bookId: string; quantity: number; price: number }[]) => Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; }>;
+  collectMoney: (customerId: string, amount: number) => Promise<{ success: boolean; message: string }>;
   // Helpers
   getBook: (id: string) => Book | undefined;
   getCustomer: (id: string) => Customer | undefined;
@@ -37,6 +37,7 @@ interface StoreContextType {
   // Notifications
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => void;
   markNotificationsAsRead: () => void;
+  refreshCustomers: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -103,6 +104,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           const apiBooks = (booksRes as any).data || [];
           const mappedBooks: Book[] = apiBooks.map((b: any) => ({
             id: b.id || b.maSach?.toString() || '',
+            isbn: b.isbn || b.ISBN || '',
             title: b.title || b.tenSach || '',
             category: b.category || b.theLoai || '',
             author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || ''),
@@ -125,13 +127,51 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             phone: c.soDienThoai || c.phone || '',
             address: c.diaChi || c.address || '',
             email: c.email || '',
-            currentDebt: c.tienNo ?? c.currentDebt ?? 0, // Database dropped TienNo, default to 0
+            currentDebt: c.tienNo ? Number(c.tienNo) : (c.currentDebt || 0),
             loyaltyPoints: c.diemTichLuy ?? c.loyaltyPoints ?? 0,
           }));
           setCustomers(mappedCustomers);
         } catch (customerErr) {
           console.error('Failed to fetch customers, using defaults:', customerErr);
-          // Keep INITIAL_CUSTOMERS as fallback
+        }
+
+        // [NEW] Fetch Invoice History
+        const token = localStorage.getItem('accessToken');
+        let authHeaders = {};
+        if (token) {
+          authHeaders = { 'Authorization': `Bearer ${token}` };
+        }
+
+        try {
+          const invRes = await fetch('http://localhost:5000/api/invoices', {
+            headers: { ...authHeaders }
+          });
+          const invData = await invRes.json();
+          if (invData.success) {
+            setInvoiceHistory(invData.data.map((inv: any) => ({
+              ...inv,
+              customerId: inv.customerId?.toString() || ''
+            })));
+          }
+        } catch (err) {
+          console.error('Failed to fetch invoice history:', err);
+        }
+
+        // [NEW] Fetch Payment History
+        try {
+          const payRes = await fetch('http://localhost:5000/api/payments', {
+            headers: { ...authHeaders }
+          });
+          const payData = await payRes.json();
+          if (payData.success) {
+            setPaymentHistory(payData.data.map((pay: any) => ({
+              ...pay,
+              customerId: pay.customerId?.toString() || '',
+              customerName: pay.customerName || ''
+            })));
+          }
+        } catch (err) {
+          console.error('Failed to fetch payment history:', err);
         }
 
       } catch (error) {
@@ -306,14 +346,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  // BM2 & QĐ2 Logic: Sell Books
-  const createInvoice = (customerId: string, items: { bookId: string; quantity: number }[]) => {
+  const createInvoice = async (customerId: string, items: { bookId: string; quantity: number; price: number }[]): Promise<{ success: boolean; message: string; totalAmount: number }> => {
     const customer = customers.find(c => c.id === customerId);
-    if (!customer) return { success: false, message: 'Khách hàng không tồn tại', totalAmount: 0 };
-
-    if (customer.currentDebt > rules.maxCustomerDebt) {
-      return { success: false, message: `QĐ2 Vi phạm: Khách đang nợ ${customer.currentDebt.toLocaleString()}đ (Tối đa ${rules.maxCustomerDebt.toLocaleString()}đ)`, totalAmount: 0 };
-    }
+    if (!customer && customerId) return { success: false, message: 'Khách hàng không tồn tại', totalAmount: 0 };
+    if (!items || items.length === 0) return { success: false, message: 'Chưa chọn sách', totalAmount: 0 };
 
     for (const item of items) {
       const book = books.find(b => b.id === item.bookId);
@@ -328,73 +364,234 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     }
 
+    // Calculate total for return value
     let totalAmount = 0;
-    const newBooks = [...books];
-    const invoiceItems = items.map(item => {
-      const idx = newBooks.findIndex(b => b.id === item.bookId);
-      const book = newBooks[idx];
-
-      newBooks[idx].stock -= item.quantity;
-      totalAmount += book.price * item.quantity;
-
-      return {
-        bookId: item.bookId,
-        quantity: item.quantity,
-        price: book.price // Capture price at time of sale
-      };
+    items.forEach(item => {
+      const book = books.find(b => b.id === item.bookId);
+      if (book) totalAmount += book.price * item.quantity;
     });
 
-    const newCustomers = [...customers];
-    const custIdx = newCustomers.findIndex(c => c.id === customerId);
-    if (custIdx > -1) {
-      newCustomers[custIdx].currentDebt += totalAmount;
+    try {
+      // Get auth token from localStorage (same key as api.ts uses)
+      const token = localStorage.getItem('accessToken');
+
+      // Call backend API to create invoice
+      const response = await fetch('http://localhost:5000/api/invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          customerId,
+          items: items.map(item => ({
+            bookId: item.bookId,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          discount: 0
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh books to get updated stock
+        const booksRes = await bookService.getAllBooks();
+        if (booksRes && (booksRes as any).success) {
+          setBooks((booksRes as any).data.map((b: any) => ({
+            id: b.id || b.maSach?.toString() || '',
+            isbn: b.isbn || b.ISBN || '',
+            title: b.title || b.tenSach || '',
+            author: b.author || b.tacGia || 'Không rõ tác giả',
+            category: b.category || b.theLoai || '',
+            publisher: b.publisher || b.nhaXuatBan || '',
+            publishYear: b.publishYear || b.namXuatBan || null,
+            price: b.price || b.giaBanLe || 0,
+            stock: b.stock ?? b.soLuongTon ?? 0,
+            imageUrl: b.imageUrl || b.hinhAnh || '',
+            description: b.description || b.moTa || '',
+            pages: b.pages || b.soTrang || null,
+            weight: b.weight || b.trongLuong || null,
+            dimensions: b.dimensions || b.kichThuoc || null
+          })));
+        }
+
+        // Refresh customers to get updated debt
+        // Refresh customers to get updated debt
+        try {
+          const customersData = await getAllCustomers();
+          setCustomers(customersData.map((c: any) => ({
+            id: c.maKH?.toString() || c.id || '',
+            name: c.tenKH || c.name || '',
+            phone: c.soDienThoai || c.phone || '',
+            address: c.diaChi || c.address || '',
+            email: c.email || '',
+            currentDebt: c.tienNo ? Number(c.tienNo) : (c.currentDebt || 0),
+            loyaltyPoints: c.diemTichLuy ?? c.loyaltyPoints ?? 0,
+          })));
+        } catch (err) {
+          console.error('Failed to refresh customers:', err);
+        }
+
+        // Refresh invoice history
+        try {
+          const invoicesRes = await fetch('http://localhost:5000/api/invoices', {
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+          });
+          const invoicesData = await invoicesRes.json();
+          if (invoicesData.success) {
+            setInvoiceHistory(invoicesData.data.map((inv: any) => ({
+              ...inv,
+              customerId: inv.customerId?.toString() || ''
+            })));
+          }
+        } catch (err) {
+          console.error('Failed to refresh invoice history:', err);
+        }
+
+        // [NEW] Refresh Books (Update Stock)
+        try {
+          const booksRes = await bookService.getAllBooks();
+          if (booksRes && (booksRes as any).success) {
+            const apiBooks = (booksRes as any).data || [];
+            const mappedBooks: Book[] = apiBooks.map((b: any) => ({
+              id: b.id || b.maSach?.toString() || '',
+              isbn: b.isbn || b.ISBN || '',
+              title: b.title || b.tenSach || '',
+              category: b.category || b.theLoai || '',
+              author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || ''),
+              stock: b.stock ?? b.soLuongTon ?? 0,
+              price: b.salePrice || b.price || b.giaBanLe || 0,
+              publisher: b.publisher || b.nhaXuatBan || '',
+              publishYear: b.publishYear || new Date().getFullYear(),
+              imageUrl: b.imageUrl || b.hinhAnh || '',
+              description: b.description || b.moTa || '',
+            }));
+            setBooks(mappedBooks);
+          }
+        } catch (err) {
+          console.error('Failed to refresh book stock:', err);
+        }
+
+        return {
+          success: true,
+          message: data.message || 'Lập hóa đơn thành công!',
+          totalAmount: data.data?.totalAmount || totalAmount,
+          finalAmount: data.data?.finalAmount,
+          id: data.data?.id
+        };
+      } else {
+        return { success: false, message: data.message || 'Lỗi khi tạo hóa đơn', totalAmount: 0 };
+      }
+    } catch (err) {
+      console.error('Invoice API error:', err);
+      return { success: false, message: 'Lỗi kết nối server khi tạo hóa đơn', totalAmount: 0 };
     }
-
-    const newInvoice: Invoice = {
-      id: `HD-${Date.now()}`,
-      date: new Date().toISOString(),
-      customerId,
-      items: invoiceItems,
-      totalAmount,
-    };
-    setInvoiceHistory(prev => [newInvoice, ...prev]);
-
-    setBooks(newBooks);
-    setCustomers(newCustomers);
-
-    return { success: true, message: `Lập hóa đơn thành công!`, totalAmount };
   };
 
-  // BM4 & QĐ4 Logic: Collect Money
-  const collectMoney = (customerId: string, amount: number) => {
+  // BM4 & QĐ4 Logic: Collect Money - NOW CALLS BACKEND API
+  const collectMoney = async (customerId: string, amount: number): Promise<{ success: boolean; message: string }> => {
     const customer = customers.find(c => c.id === customerId);
     if (!customer) return { success: false, message: 'Khách hàng không tồn tại' };
 
+    // Local validation for immediate feedback
     if (rules.usePaymentRule && amount > customer.currentDebt) {
       return { success: false, message: `QĐ4 Vi phạm: Số tiền thu (${amount.toLocaleString()}đ) vượt quá nợ (${customer.currentDebt.toLocaleString()}đ)` };
     }
 
-    const newCustomers = [...customers];
-    const idx = newCustomers.findIndex(c => c.id === customerId);
-    if (idx > -1) {
-      newCustomers[idx].currentDebt -= amount;
+    try {
+      // Get auth token from localStorage (same key as api.ts uses)
+      const token = localStorage.getItem('accessToken');
+
+      // Call backend API to create payment
+      const response = await fetch('http://localhost:5000/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          customerId,
+          amount,
+          paymentMethod: 'TIEN_MAT'
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh customers to get updated debt
+        try {
+          const customersData = await getAllCustomers();
+          // Map data consistent with initial load
+          setCustomers(customersData.map((c: any) => ({
+            id: c.maKH?.toString() || c.id || '',
+            name: c.tenKH || c.name || '',
+            phone: c.soDienThoai || c.phone || '',
+            address: c.diaChi || c.address || '',
+            email: c.email || '',
+            currentDebt: c.tienNo ? Number(c.tienNo) : (c.currentDebt || 0),
+            loyaltyPoints: c.diemTichLuy ?? c.loyaltyPoints ?? 0,
+          })));
+        } catch (err) {
+          console.error('Failed to refresh customers:', err);
+        }
+
+        // Refresh payment history
+        try {
+          const paymentsRes = await fetch('http://localhost:5000/api/payments', {
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+          });
+          const paymentsData = await paymentsRes.json();
+          if (paymentsData.success) {
+            setPaymentHistory(paymentsData.data.map((p: any) => ({
+              id: p.id,
+              date: p.date,
+              customerId: p.customerId ? p.customerId.toString() : '',
+              customerName: p.customerName || '',
+              amount: p.amount
+            })));
+          }
+        } catch (err) {
+          console.error('Failed to refresh payment history:', err);
+        }
+
+        return { success: true, message: data.message || 'Thu tiền thành công!' };
+      } else {
+        return { success: false, message: data.message || 'Lỗi khi thu tiền' };
+      }
+    } catch (err) {
+      console.error('Payment API error:', err);
+      return { success: false, message: 'Lỗi kết nối server khi thu tiền' };
     }
-    setCustomers(newCustomers);
-
-    // Create and save payment receipt to history
-    const newReceipt: PaymentReceipt = {
-      id: `PT-${Date.now()}`,
-      date: new Date().toISOString(),
-      customerId,
-      amount,
-    };
-    setPaymentHistory(prev => [newReceipt, ...prev]);
-
-    return { success: true, message: 'Thu tiền thành công!' };
   };
 
   const getBook = (id: string) => books.find(b => b.id === id);
-  const getCustomer = (id: string) => customers.find(c => c.id === id);
+  const getCustomer = (id: string | number) => {
+    if (!id) return undefined;
+    return customers.find(c => String(c.id) === String(id));
+  };
+
+  // [NEW] Refresh Customers Function
+  const refreshCustomers = async () => {
+    try {
+      const customersData = await getAllCustomers();
+      // Map data consistent with initial load
+      const mappedCustomers: Customer[] = customersData.map((c: any) => ({
+        id: c.maKH?.toString() || c.id || '',
+        name: c.tenKH || c.name || '',
+        phone: c.soDienThoai || c.phone || '',
+        address: c.diaChi || c.address || '',
+        email: c.email || '',
+        currentDebt: c.tienNo ? Number(c.tienNo) : (c.currentDebt || 0),
+        loyaltyPoints: c.diemTichLuy ?? c.loyaltyPoints ?? 0,
+      }));
+      setCustomers(mappedCustomers);
+    } catch (err) {
+      console.error('Failed to manually refresh customers:', err);
+    }
+  };
 
   return (
     <StoreContext.Provider value={{
@@ -415,7 +612,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateBook,
       deleteBook,
       addNotification,
-      markNotificationsAsRead
+      markNotificationsAsRead,
+      refreshCustomers
     }}>
       {children}
     </StoreContext.Provider>

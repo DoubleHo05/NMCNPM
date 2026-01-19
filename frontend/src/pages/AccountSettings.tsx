@@ -4,21 +4,27 @@ import { useSearchParams } from 'react-router-dom';
 import {
   User, Shield, Bell, Camera, Mail, Phone, MapPin,
   Upload, Eye, EyeOff, CheckCircle, Image as ImageIcon, AlertCircle, X,
-  FilePlus, FileText, DollarSign, Cog
+  FilePlus, FileText, DollarSign, Cog, AtSign
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { timeAgo } from '../utils/time';
+import { apiRequest } from '../services/api';
+import DatePicker from '../components/DatePicker';
 
 type Tab = 'profile' | 'security' | 'notification';
 
 const AccountSettings: React.FC = () => {
   const { notifications } = useStore();
+  const { user, refreshUser } = useAuth();
 
   // Use URL params for Tab management instead of simple useState
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') as Tab;
 
   const [activeTab, setActiveTab] = useState<Tab>('profile');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Sync internal state with URL params
   useEffect(() => {
@@ -34,17 +40,42 @@ const AccountSettings: React.FC = () => {
     setSearchParams({ tab });
   };
 
-  // -- STATE: PROFILE --
+  // -- STATE: PROFILE - Load from auth context --
   const [profile, setProfile] = useState({
-    firstName: 'Nguyen',
-    lastName: 'Admin',
-    email: 'nguyen206hc@gmail.com',
+    username: '',
+    firstName: '',
+    lastName: '',
+    email: '',
     gender: 'Nam',
-    dob: '2003-12-23',
-    phone: '0356206251',
-    address: 'aaaaaa',
-    avatar: 'https://ui-avatars.com/api/?name=Nguyen+Admin&background=0D8ABC&color=fff'
+    dob: '',
+    phone: '',
+    address: '',
+    avatar: ''
   });
+
+  // Load profile from user context
+  useEffect(() => {
+    if (user) {
+      const names = user.hoTen?.split(' ') || ['', ''];
+      const firstName = names.slice(0, -1).join(' ') || '';
+      const lastName = names.slice(-1)[0] || '';
+
+      // Load saved avatar from localStorage
+      const savedAvatar = localStorage.getItem(`avatar_${user.maNV}`);
+
+      setProfile({
+        username: user.tenDangNhap || '',
+        firstName,
+        lastName,
+        email: user.email || '',
+        gender: 'Nam',
+        dob: '',
+        phone: user.soDienThoai || '',
+        address: '',
+        avatar: savedAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.hoTen || 'User')}&background=0D8ABC&color=fff`
+      });
+    }
+  }, [user]);
 
   // -- STATE: AVATAR MODAL --
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -65,16 +96,27 @@ const AccountSettings: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewAvatar(url);
+      // Convert to base64 for localStorage persistence
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSaveAvatar = () => {
-    if (previewAvatar) {
+    if (previewAvatar && user) {
+      // Save to localStorage for persistence
+      localStorage.setItem(`avatar_${user.maNV}`, previewAvatar);
       setProfile(prev => ({ ...prev, avatar: previewAvatar }));
       setIsAvatarModalOpen(false);
       setPreviewAvatar(null);
+      setSaveMessage({ type: 'success', text: 'Đã cập nhật ảnh đại diện!' });
+      setTimeout(() => setSaveMessage(null), 3000);
+
+      // Dispatch custom event to update header avatar immediately
+      window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: previewAvatar }));
     }
   };
 
@@ -86,6 +128,37 @@ const AccountSettings: React.FC = () => {
   // -- HANDLERS: PROFILE FORM --
   const handleProfileChange = (field: string, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Save profile to API
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+
+      await apiRequest(`/users/${user.maNV}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          tenDangNhap: profile.username,
+          hoTen: fullName,
+          email: profile.email,
+          soDienThoai: profile.phone
+        })
+      });
+
+      // Refresh user data
+      await refreshUser();
+      setSaveMessage({ type: 'success', text: 'Đã cập nhật thông tin thành công!' });
+    } catch (error) {
+      setSaveMessage({ type: 'error', text: 'Lỗi khi cập nhật thông tin!' });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
   };
 
   // -- HANDLERS: PASSWORD --
@@ -221,6 +294,19 @@ const AccountSettings: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              {/* Username field */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên đăng nhập</label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-3 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    className="w-full p-3 pl-10 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={profile.username}
+                    onChange={(e) => handleProfileChange('username', e.target.value)}
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Họ</label>
                 <input
@@ -289,18 +375,29 @@ const AccountSettings: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Ngày sinh</label>
-                <input
-                  type="date"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                <DatePicker
                   value={profile.dob}
-                  onChange={(e) => handleProfileChange('dob', e.target.value)}
+                  onChange={(date) => handleProfileChange('dob', date)}
                 />
               </div>
             </div>
 
+            {/* Save message */}
+            {saveMessage && (
+              <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${saveMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                {saveMessage.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+                <span className="text-sm font-medium">{saveMessage.text}</span>
+              </div>
+            )}
+
             <div className="mt-8 pt-6 flex items-center gap-4 border-t border-slate-100">
-              <button className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30">
-                Cập nhật
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? 'Đang lưu...' : 'Cập nhật'}
               </button>
               <button className="px-6 py-2.5 text-slate-600 hover:text-red-600 font-medium text-sm transition-colors">
                 Huỷ bỏ
@@ -485,20 +582,12 @@ const AccountSettings: React.FC = () => {
                 <div className="space-y-4">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     <Upload size={18} />
-                    Tải ảnh lên
+                    Chọn ảnh từ thiết bị
                   </button>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    {/* Simple frame placeholders to look like Facebook suggestions */}
-                    <div className="aspect-square bg-slate-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200">
-                      <ImageIcon className="text-slate-400" size={32} />
-                    </div>
-                    <div className="aspect-square bg-slate-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200">
-                      <ImageIcon className="text-slate-400" size={32} />
-                    </div>
-                  </div>
+                  <p className="text-xs text-center text-slate-400">JPG, PNG hoặc GIF. Tối đa 5MB</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

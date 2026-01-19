@@ -4,11 +4,13 @@ import { usePermissions } from '../hooks/usePermissions';
 import {
   Plus, Trash2, Search, ShoppingCart, User,
   Minus, CreditCard, History, LayoutGrid, List,
-  Package, DollarSign, AlertCircle
+  Package, DollarSign, AlertCircle, FileText, X, ChevronDown
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Customer } from '../types';
 import PaymentModal from '../components/PaymentModal';
 import { useToast } from '../components/Toast';
+import DatePicker from '../components/DatePicker';
 
 interface InvoiceItem {
   bookId: string;
@@ -32,6 +34,13 @@ const InvoiceCreate: React.FC = () => {
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [completedInvoiceId, setCompletedInvoiceId] = useState<string | null>(null);
+  const [lastSuccessData, setLastSuccessData] = useState<{
+    invoiceId: string;
+    customerName: string;
+    totalAmount: number;
+    amountPaid: number;
+    remainingDebt: number;
+  } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Filter books
@@ -96,35 +105,50 @@ const InvoiceCreate: React.FC = () => {
     setItems(prev => prev.filter(i => i.bookId !== bookId));
   };
 
-  const handlePaymentConfirm = (amountPaid: number) => {
+  const handlePaymentConfirm = async (amountPaid: number) => {
     if (!customerId) return;
     setIsProcessing(true);
 
-    // 1. Create Invoice
-    const invoiceResult = createInvoice(customerId, items);
+    // Prepare items with price
+    const itemsWithPrice = items.map(item => {
+      const book = books.find(b => b.id === item.bookId);
+      return {
+        bookId: item.bookId,
+        quantity: item.quantity,
+        price: book?.price || 0
+      };
+    });
+
+    // 1. Create Invoice (now async, calls backend API)
+    const invoiceResult = await createInvoice(customerId, itemsWithPrice);
 
     if (invoiceResult.success) {
-      // 2. Record Payment if amount > 0
+      // 2. Record Payment if amount > 0 (also async)
       if (amountPaid > 0) {
-        collectMoney(customerId, amountPaid);
+        await collectMoney(customerId, amountPaid);
       }
 
       const customer = getCustomer(customerId);
+      const finalAmount = invoiceResult.finalAmount ?? invoiceResult.totalAmount;
+      const newDebt = customer ? customer.currentDebt + finalAmount - amountPaid : 0;
+
+      // Persist data for Success Modal
+      setLastSuccessData({
+        invoiceId: invoiceResult.id || 'N/A',
+        customerName: customer?.name || 'Khách vãng lai',
+        totalAmount: invoiceResult.totalAmount, // Giá trị đơn hàng
+        amountPaid: amountPaid,
+        remainingDebt: newDebt // Nợ sau khi mua & trả tiền
+      });
+
       addNotification({
         type: 'invoice',
         title: 'Bán hàng thành công',
         message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
       });
 
-      // Show success in modal (keep modal open for printing)
-      if (invoiceResult.message.includes('HD-')) {
-        // Extract ID if message contains it, or find latest invoice
-        // For simplicity, we can pass ID from createInvoice return if we modified context, 
-        // but context returns string message. We'll simulate ID for now or grab top history.
-        setCompletedInvoiceId('HD-NEW');
-      } else {
-        setCompletedInvoiceId('HD-' + Date.now());
-      }
+      // Show success in modal
+      setCompletedInvoiceId('HD-' + Date.now());
 
       // Cleanup cart, but keep modal open
       setItems([]);
@@ -243,14 +267,16 @@ const InvoiceCreate: React.FC = () => {
                 >
                   <option value="">Chọn khách lẻ...</option>
                   {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name} - Nợ: {c.currentDebt.toLocaleString()}đ
+                    </option>
                   ))}
                 </select>
               </div>
               {customerId && (
                 <div className="mt-2 flex justify-between text-xs px-1">
-                  <span className="text-slate-500">Nợ hiện tại:</span>
-                  <span className="font-bold text-red-500">{formatCurrency(getCustomer(customerId)?.currentDebt || 0)}đ</span>
+                  <span className="text-slate-500">Tiền nợ:</span>
+                  <span className="font-bold text-amber-600">{formatCurrency(getCustomer(customerId)?.currentDebt || 0)}đ</span>
                 </div>
               )}
             </div>
@@ -382,13 +408,11 @@ const InvoiceCreate: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 overflow-hidden">
-          {/* Reuse existing history view logic here or create a component. 
-               For brevity, adding placeholder or simple text */}
-          <div className="text-center py-20 text-slate-400">
-            <History size={48} className="mx-auto mb-4 opacity-50" />
-            <p>Lịch sử hóa đơn đang được cập nhật...</p>
-          </div>
+        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 overflow-hidden flex flex-col">
+          {/* History Tab Implementation */}
+          {activeTab === 'history' && (
+            <HistoryTab />
+          )}
         </div>
       )}
 
@@ -404,10 +428,115 @@ const InvoiceCreate: React.FC = () => {
         onConfirmPayment={handlePaymentConfirm}
         isProcessing={isProcessing}
         completedInvoiceId={completedInvoiceId}
+        lastSuccessData={lastSuccessData}
       />
     </div>
   );
 };
 
-export default InvoiceCreate;
+// --- Internal History Component ---
+const HistoryTab: React.FC = () => {
+  const { invoiceHistory } = useStore();
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
+  const filteredInvoices = invoiceHistory.filter((inv) =>
+    inv.date.startsWith(filterDate)
+  );
+
+  const toggleExpand = (id: string) => {
+    setExpandedInvoiceId(expandedInvoiceId === id ? null : id);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('vi-VN');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="w-72">
+          <DatePicker
+            value={filterDate}
+            onChange={setFilterDate}
+            label="Xem lịch sử theo ngày"
+          />
+        </div>
+      </div>
+
+      <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+        {filteredInvoices.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {filteredInvoices.map((invoice) => {
+              const isExpanded = expandedInvoiceId === invoice.id;
+
+              return (
+                <div key={invoice.id}>
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={() => toggleExpand(invoice.id)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800">HĐ #{invoice.id}</p>
+                        <p className="text-xs text-slate-500">
+                          {formatDate(invoice.date)} • KH: {invoice.customerName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-right mr-4">
+                        <p className="font-bold text-blue-600">{invoice.finalAmount.toLocaleString()}đ</p>
+                        {invoice.discount > 0 && (
+                          <p className="text-xs text-slate-400 line-through">{invoice.totalAmount.toLocaleString()}đ</p>
+                        )}
+                      </div>
+                      <ChevronDown size={20} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="bg-slate-50 p-4 border-t border-slate-200 animate-in fade-in duration-200">
+                      <h4 className="font-semibold text-sm text-slate-600 mb-2">Chi tiết hóa đơn:</h4>
+                      <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg bg-white">
+                        {invoice.items.map((item, idx) => (
+                          <li key={idx} className="flex items-center justify-between p-3 text-sm">
+                            <div>
+                              <span className="font-medium text-slate-800 block">{item.bookName}</span>
+                              <span className="text-xs text-slate-400">Đơn giá: {item.price.toLocaleString()}đ</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-slate-500 block">SL: <b className="text-blue-600">{item.quantity}</b></span>
+                              <span className="text-xs font-semibold text-slate-700">{(item.quantity * item.price).toLocaleString()}đ</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-3 flex justify-end gap-4 text-sm font-medium border-t border-slate-200 pt-3">
+                        <div className="text-slate-500">Người bán: <span className="text-slate-800">{invoice.employeeName || 'Không rõ'}</span></div>
+                        <div className="text-slate-500">Giảm giá: <span className="text-red-600">-{invoice.discount.toLocaleString()}đ</span></div>
+                        <div className="text-slate-900">Thành tiền: <span className="text-blue-600 font-bold">{invoice.finalAmount.toLocaleString()}đ</span></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-16 text-slate-500">
+            <History size={40} className="mx-auto text-slate-300 mb-4" />
+            <h3 className="font-semibold text-slate-700">Không có hóa đơn</h3>
+            <p className="text-sm">Chưa có hóa đơn nào được tạo trong ngày {new Date(filterDate).toLocaleDateString('vi-VN')}.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default InvoiceCreate;

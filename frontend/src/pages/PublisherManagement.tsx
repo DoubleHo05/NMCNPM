@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Pencil, Trash2, X, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface Publisher {
     id: number;
@@ -20,6 +21,7 @@ const PublisherManagement: React.FC = () => {
     const [formData, setFormData] = useState({ name: '', address: '', phone: '' });
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number; name: string }>({ isOpen: false, id: 0, name: '' });
     const { showToast } = useToast();
 
     const fetchPublishers = async () => {
@@ -80,16 +82,18 @@ const PublisherManagement: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: number, name: string, bookCount: number) => {
+    const handleDelete = (id: number, name: string, bookCount: number) => {
         if (bookCount > 0) {
             showToast(`Không thể xóa "${name}" vì có ${bookCount} sách liên quan`, 'error');
             return;
         }
-        if (!confirm(`Xác nhận xóa "${name}"?`)) return;
+        setDeleteModal({ isOpen: true, id, name });
+    };
 
+    const confirmDelete = async () => {
         try {
             const token = localStorage.getItem('accessToken');
-            const res = await fetch(`${API_URL}/publishers/${id}`, {
+            const res = await fetch(`${API_URL}/publishers/${deleteModal.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -99,6 +103,7 @@ const PublisherManagement: React.FC = () => {
         } catch (err) {
             showToast('Lỗi khi xóa', 'error');
         }
+        setDeleteModal({ isOpen: false, id: 0, name: '' });
     };
 
     return (
@@ -193,6 +198,18 @@ const PublisherManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                title="Xác nhận xóa NXB"
+                message={`Bạn có chắc muốn xóa nhà xuất bản "${deleteModal.name}"?`}
+                confirmText="Xóa"
+                cancelText="Hủy"
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteModal({ isOpen: false, id: 0, name: '' })}
+                variant="danger"
+            />
         </div>
     );
 };

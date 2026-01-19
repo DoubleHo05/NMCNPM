@@ -200,27 +200,75 @@ function calculateRevenuePrediction(historicalData) {
 }
 
 /**
- * Get trending books
+ * Get trending books using AI + database images
  */
-async function getTrendingBooks() {
+async function getTrendingBooks(prisma) {
     const cached = loadCache(TRENDING_CACHE, TRENDING_DURATION);
     if (cached && cached.books) {
         console.log('📦 Using cached trending books');
         return cached.books;
     }
 
-    // Default trending books from Fahasa bestsellers
-    const defaultBooks = [
-        { title: 'Mắt Biếc', author: 'Nguyễn Nhật Ánh', isbn: '9786041234567' },
-        { title: 'Đắc Nhân Tâm', author: 'Dale Carnegie', isbn: '9786041234571' },
-        { title: 'Nhà Giả Kim', author: 'Paulo Coelho', isbn: '9786041234572' },
-        { title: 'Sapiens: Lược Sử Loài Người', author: 'Yuval Noah Harari', isbn: '9786041234584' },
-        { title: 'Muôn Kiếp Nhân Sinh', author: 'Nguyên Phong', isbn: '9786041234593' }
+    // Default trending books with images from database
+    let books = [
+        { title: 'Mắt Biếc', author: 'Nguyễn Nhật Ánh', isbn: '9786041234567', image: 'https://cdn0.fahasa.com/media/catalog/product/m/a/mat-biec_bia-mem_1_2019_12_20_10_03_14.jpg' },
+        { title: 'Đắc Nhân Tâm', author: 'Dale Carnegie', isbn: '9786041234571', image: 'https://cdn0.fahasa.com/media/catalog/product/8/9/8935086840542.jpg' },
+        { title: 'Nhà Giả Kim', author: 'Paulo Coelho', isbn: '9786041234572', image: 'https://cdn0.fahasa.com/media/catalog/product/n/h/nha-gia-kim-tai-ban-2020.jpg' },
+        { title: 'Sapiens: Lược Sử Loài Người', author: 'Yuval Noah Harari', isbn: '9786041234584', image: 'https://cdn0.fahasa.com/media/catalog/product/s/a/sapiens.jpg' },
+        { title: 'Muôn Kiếp Nhân Sinh', author: 'Nguyên Phong', isbn: '9786041234593', image: 'https://cdn0.fahasa.com/media/catalog/product/m/u/muon-kiep-nhan-sinh.jpg' }
     ];
 
-    saveCache(TRENDING_CACHE, { books: defaultBooks });
+    // Try to get AI recommendations
+    if (OPENROUTER_INSIGHTS_KEYS.length > 0) {
+        try {
+            const prompt = `Bạn là chuyên gia sách. Hãy gợi ý 5 cuốn sách tiếng Việt đang thịnh hành nhất hiện nay.
+Trả về định dạng JSON array với các field: title, author
+Ví dụ: [{"title": "Mắt Biếc", "author": "Nguyễn Nhật Ánh"}]
+Chỉ trả về JSON array, không có text khác.`;
+
+            const response = await callOpenRouter(prompt, OPENROUTER_INSIGHTS_KEYS);
+
+            // Try to parse JSON from response
+            const jsonMatch = response.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                const aiBooks = JSON.parse(jsonMatch[0]);
+                if (Array.isArray(aiBooks) && aiBooks.length > 0) {
+                    books = aiBooks.slice(0, 5).map(b => ({
+                        title: b.title,
+                        author: b.author,
+                        isbn: '',
+                        image: 'https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg'
+                    }));
+                    console.log('🤖 Got AI trending recommendations');
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ AI trending failed, using defaults:', error.message);
+        }
+    }
+
+    // Try to get images from database if prisma available
+    if (prisma) {
+        try {
+            for (let i = 0; i < books.length; i++) {
+                const dbBook = await prisma.sach.findFirst({
+                    where: { tenSach: { contains: books[i].title.split(':')[0].trim() } },
+                    select: { hinhAnh: true, isbn: true }
+                });
+                if (dbBook) {
+                    books[i].image = dbBook.hinhAnh || books[i].image;
+                    books[i].isbn = dbBook.isbn || books[i].isbn;
+                }
+            }
+            console.log('📚 Updated images from database');
+        } catch (e) {
+            console.log('⚠️ Could not fetch images from DB');
+        }
+    }
+
+    saveCache(TRENDING_CACHE, { books });
     console.log('💾 Trending books cached');
-    return defaultBooks;
+    return books;
 }
 
 /**
