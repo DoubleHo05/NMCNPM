@@ -28,7 +28,7 @@ interface StoreContextType {
   paymentHistory: PaymentReceipt[];
   updateRules: (newRules: SystemRules) => void;
   importBooks: (items: { bookDetails: Book; quantity: number }[]) => Promise<{ success: boolean; message: string }>;
-  createInvoice: (customerId: string, items: { bookId: string; quantity: number; price: number }[]) => Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; }>;
+  createInvoice: (customerId: string, items: { bookId: string; quantity: number; price: number }[], amountPaid?: number) => Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; currentDebt?: number; }>;
   collectMoney: (customerId: string, amount: number) => Promise<{ success: boolean; message: string }>;
   // Helpers
   getBook: (id: string) => Book | undefined;
@@ -355,7 +355,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const createInvoice = async (customerId: string, items: { bookId: string; quantity: number; price: number }[]): Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; }> => {
+  const createInvoice = async (customerId: string, items: { bookId: string; quantity: number; price: number }[], amountPaid: number = 0): Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; currentDebt?: number; }> => {
     const customer = customers.find(c => c.id === customerId);
     if (!customer && customerId) return { success: false, message: 'Khách hàng không tồn tại', totalAmount: 0 };
     if (!items || items.length === 0) return { success: false, message: 'Chưa chọn sách', totalAmount: 0 };
@@ -384,7 +384,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Get auth token from localStorage (same key as api.ts uses)
       const token = localStorage.getItem('accessToken');
 
-      // Call backend API to create invoice
+      // Call backend API to create invoice with amountPaid
       const response = await fetch('http://localhost:5000/api/invoices', {
         method: 'POST',
         headers: {
@@ -398,7 +398,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             quantity: item.quantity,
             price: item.price
           })),
-          discount: 0
+          discount: 0,
+          amountPaid: amountPaid // Gửi tiền khách đưa để backend xử lý
         })
       });
 

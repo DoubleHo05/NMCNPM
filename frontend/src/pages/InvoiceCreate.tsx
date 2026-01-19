@@ -119,48 +119,41 @@ const InvoiceCreate: React.FC = () => {
       };
     });
 
-    // 1. Create Invoice (now async, calls backend API)
-    const invoiceResult = await createInvoice(customerId, itemsWithPrice);
+    // Create Invoice with payment info (backend handles everything in one transaction)
+    const invoiceResult = await createInvoice(customerId, itemsWithPrice, amountPaid);
 
     if (invoiceResult.success) {
-      // 2. Record Payment if amount > 0 (also async)
-      let paymentSuccess = true;
-      if (amountPaid > 0) {
-        const payResult = await collectMoney(customerId, amountPaid);
-        if (!payResult.success) {
-          showToast(`Thanh toán thất bại: ${payResult.message}`, 'error');
-          paymentSuccess = false;
-        }
-      }
+      const customer = getCustomer(customerId);
+      const finalAmount = invoiceResult.finalAmount ?? invoiceResult.totalAmount;
 
-      if (paymentSuccess) {
-        // Only show success if payment succeeded (or wasn't needed)
-        const customer = getCustomer(customerId);
-        const finalAmount = invoiceResult.finalAmount ?? invoiceResult.totalAmount;
-        const newDebt = customer ? customer.currentDebt + finalAmount - amountPaid : 0;
+      // Tính nợ sau thanh toán (tính tại frontend để đảm bảo logic đúng):
+      // - Nếu trả đủ/dư: nợ giữ nguyên (tiền thừa trả khách, KHÔNG trừ nợ)
+      // - Nếu trả thiếu: nợ = nợ cũ + phần chưa trả
+      const debtToAdd = Math.max(0, finalAmount - amountPaid); // Chỉ cộng thêm nếu thiếu
+      const oldDebt = customer?.currentDebt || 0;
+      const remainingDebt = oldDebt + debtToAdd;
 
-        // Persist data for Success Modal
-        setLastSuccessData({
-          invoiceId: invoiceResult.id || 'N/A',
-          customerName: customer?.name || 'Khách vãng lai',
-          totalAmount: invoiceResult.totalAmount, // Giá trị đơn hàng
-          amountPaid: amountPaid,
-          remainingDebt: newDebt // Nợ sau khi mua & trả tiền
-        });
+      // Persist data for Success Modal
+      setLastSuccessData({
+        invoiceId: invoiceResult.id || 'N/A',
+        customerName: customer?.name || 'Khách vãng lai',
+        totalAmount: invoiceResult.totalAmount,
+        amountPaid: amountPaid,
+        remainingDebt: remainingDebt
+      });
 
-        addNotification({
-          type: 'invoice',
-          title: 'Bán hàng thành công',
-          message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
-        });
+      addNotification({
+        type: 'invoice',
+        title: 'Bán hàng thành công',
+        message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
+      });
 
-        // Show success in modal
-        setCompletedInvoiceId('HD-' + Date.now());
+      // Show success in modal
+      setCompletedInvoiceId('HD-' + Date.now());
 
-        // Cleanup cart, but keep modal open
-        setItems([]);
-        setCustomerId('');
-      }
+      // Cleanup cart, but keep modal open
+      setItems([]);
+      setCustomerId('');
     } else {
       showToast(invoiceResult.message, 'error');
       setIsPaymentModalOpen(false); // Close on error

@@ -156,10 +156,10 @@ const getInvoiceById = async (req, res) => {
 // Tạo hóa đơn mới
 const createInvoice = async (req, res) => {
   try {
-    const { customerId, items, discount = 0 } = req.body;
+    const { customerId, items, discount = 0, amountPaid = 0 } = req.body;
     const maNV = req.user?.maNV || 1;
 
-    console.log('DEBUG INVOICE:', { customerId, items, discount, maNV });
+    console.log('DEBUG INVOICE:', { customerId, items, discount, amountPaid, maNV });
 
     if (!items || items.length === 0) {
       return res.status(400).json({
@@ -174,6 +174,10 @@ const createInvoice = async (req, res) => {
       tongTien += item.quantity * item.price;
     }
     const thanhTien = tongTien - discount;
+
+    // Tính số tiền nợ thực sự cần tăng
+    // Nếu khách trả đủ hoặc dư, không tăng nợ
+    const debtToAdd = Math.max(0, thanhTien - amountPaid);
 
     // Tạo hóa đơn với transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -216,20 +220,41 @@ const createInvoice = async (req, res) => {
         });
       }
 
-      // 3. Cập nhật tiền nợ khách hàng (nếu có)
-      if (customerId) {
+      // 3. Cập nhật tiền nợ khách hàng (chỉ tăng phần còn nợ)
+      if (customerId && debtToAdd > 0) {
         await tx.khachHang.update({
           where: { maKH: parseInt(customerId) },
           data: {
             tienNo: {
-              increment: thanhTien,
+              increment: debtToAdd,
             },
+          },
+        });
+      }
+
+      // 4. Tạo phiếu thu nếu khách có trả tiền
+      if (customerId && amountPaid > 0) {
+        await tx.phieuThuTien.create({
+          data: {
+            maHoaDon: newInvoice.maHoaDon,
+            soTienThu: Math.min(amountPaid, thanhTien), // Chỉ ghi nhận tối đa = thành tiền
+            phuongThucThanhToan: 'TIEN_MAT',
           },
         });
       }
 
       return newInvoice;
     });
+
+    // Lấy lại thông tin khách hàng để trả về nợ hiện tại
+    let currentDebt = 0;
+    if (customerId) {
+      const customer = await prisma.khachHang.findUnique({
+        where: { maKH: parseInt(customerId) },
+        select: { tienNo: true }
+      });
+      currentDebt = customer?.tienNo ? parseFloat(customer.tienNo) : 0;
+    }
 
     res.status(201).json({
       success: true,
@@ -241,6 +266,9 @@ const createInvoice = async (req, res) => {
         totalAmount: parseFloat(result.tongTien),
         discount: parseFloat(result.tienGiamGia),
         finalAmount: parseFloat(result.thanhTien),
+        amountPaid: amountPaid,
+        debtAdded: debtToAdd,
+        currentDebt: currentDebt,
         items: result.chiTiet.map((ct) => ({
           bookId: ct.maSach?.toString(),
           bookName: ct.sach?.tenSach,

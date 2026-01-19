@@ -130,7 +130,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl w-full max-w-lg p-0 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         Thanh toán đơn hàng
                     </h3>
@@ -139,8 +139,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     </button>
                 </div>
 
-                {/* content */}
-                <div className="p-6 space-y-6">
+                {/* content - scrollable */}
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
                     {/* Total Display */}
                     <div className="text-center py-4 bg-blue-50 rounded-xl border border-blue-100">
                         <p className="text-sm text-blue-600 font-medium uppercase tracking-wide">Tổng tiền phải thu</p>
@@ -223,7 +223,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-200 bg-slate-50">
+                <div className="p-6 border-t border-slate-200 bg-slate-50 shrink-0">
                     <button
                         onClick={handlePayment}
                         disabled={isProcessing}

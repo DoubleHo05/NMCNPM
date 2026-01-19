@@ -268,12 +268,13 @@ const CashCollection: React.FC = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Số tiền thu</label>
                 <div className="relative">
                   <input
-                    type="number"
+                    type="text"
                     className="w-full p-2.5 pl-4 pr-12 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-                    value={amount === 0 ? '' : amount}
+                    value={amount === 0 ? '' : amount.toLocaleString('vi-VN')}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      setAmount(val === '' ? 0 : parseInt(val));
+                      // Remove non-digit characters
+                      const val = e.target.value.replace(/\D/g, '');
+                      setAmount(val === '' ? 0 : parseInt(val, 10));
                     }}
                     placeholder="0"
                   />
