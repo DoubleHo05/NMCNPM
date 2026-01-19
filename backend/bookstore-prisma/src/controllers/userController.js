@@ -472,6 +472,78 @@ const changePassword = async (req, res) => {
   }
 };
 
+// Update current user profile
+const updateCurrentUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.maNV;
+    const { hoTen, email, soDienThoai } = req.body;
+
+    // Get current user
+    const existingUser = await prisma.nhanVien.findUnique({
+      where: { maNV: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    // Check if new email is taken by another user
+    if (email && email !== existingUser.email) {
+      const userWithSameEmail = await prisma.nhanVien.findFirst({
+        where: {
+          email,
+          maNV: { not: userId }
+        },
+      });
+
+      if (userWithSameEmail) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã được sử dụng bởi tài khoản khác',
+        });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...(hoTen && { hoTen }),
+      ...(email !== undefined && { email: email || null }),
+      ...(soDienThoai !== undefined && { soDienThoai: soDienThoai || null }),
+    };
+
+    // Update user
+    const updatedUser = await prisma.nhanVien.update({
+      where: { maNV: userId },
+      data: updateData,
+      select: {
+        maNV: true,
+        tenDangNhap: true,
+        hoTen: true,
+        email: true,
+        soDienThoai: true,
+        vaiTro: true,
+        trangThai: true,
+        updatedAt: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật thông tin cá nhân thành công',
+      data: { user: updatedUser },
+    });
+  } catch (error) {
+    console.error('Update current user profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật thông tin',
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -480,4 +552,5 @@ module.exports = {
   deleteUser,
   updateUserStatus,
   changePassword,
+  updateCurrentUserProfile,
 };

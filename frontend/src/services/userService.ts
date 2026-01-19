@@ -100,3 +100,35 @@ export const updateUserStatus = async (
     body: JSON.stringify({ trangThai }),
   });
 };
+
+// Update current user profile input
+export interface UpdateProfileInput {
+  hoTen?: string;
+  email?: string;
+  soDienThoai?: string;
+}
+
+// Update current user profile (for AccountSettings)
+export const updateCurrentUserProfile = async (data: UpdateProfileInput): Promise<UserResponse> => {
+  return apiRequest<UserResponse>('/users/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+// Change password response
+export interface ChangePasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+// Change password for current user
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<ChangePasswordResponse> => {
+  return apiRequest<ChangePasswordResponse>('/users/change-password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+};

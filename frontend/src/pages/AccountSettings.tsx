@@ -2,17 +2,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
-  User, Shield, Bell, Camera, Mail, Phone, MapPin,
+  User, Shield, Bell, Camera, Mail, Phone,
   Upload, Eye, EyeOff, CheckCircle, Image as ImageIcon, AlertCircle, X,
-  FilePlus, FileText, DollarSign, Cog
+  FilePlus, FileText, DollarSign, Cog, Loader2
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
+import { updateCurrentUserProfile, changePassword as changePasswordApi } from '../services/userService';
 import { timeAgo } from '../utils/time';
 
 type Tab = 'profile' | 'security' | 'notification';
 
 const AccountSettings: React.FC = () => {
   const { notifications } = useStore();
+  const { user, refreshUser } = useAuth();
 
   // Use URL params for Tab management instead of simple useState
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,17 +37,40 @@ const AccountSettings: React.FC = () => {
     setSearchParams({ tab });
   };
 
+  // Helper to get initials for avatar
+  const getInitials = (fullName: string | undefined) => {
+    if (!fullName) return 'U';
+    const parts = fullName.trim().split(' ').filter(p => p);
+    if (parts.length === 0) return 'U';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
   // -- STATE: PROFILE --
   const [profile, setProfile] = useState({
-    firstName: 'Nguyen',
-    lastName: 'Admin',
-    email: 'nguyen206hc@gmail.com',
-    gender: 'Nam',
-    dob: '2003-12-23',
-    phone: '0356206251',
-    address: 'aaaaaa',
-    avatar: 'https://ui-avatars.com/api/?name=Nguyen+Admin&background=0D8ABC&color=fff'
+    hoTen: '',
+    email: '',
+    soDienThoai: '',
+    avatar: ''
   });
+
+  // Loading and message states
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Initialize profile from user data
+  useEffect(() => {
+    if (user) {
+      const initials = getInitials(user.hoTen);
+      setProfile({
+        hoTen: user.hoTen || '',
+        email: user.email || '',
+        soDienThoai: user.soDienThoai || '',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0D8ABC&color=fff`
+      });
+    }
+  }, [user]);
 
   // -- STATE: AVATAR MODAL --
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -88,13 +114,59 @@ const AccountSettings: React.FC = () => {
     setProfile(prev => ({ ...prev, [field]: value }));
   };
 
+  // -- HANDLERS: PROFILE UPDATE --
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    
+    setProfileError(null);
+    setProfileSuccess(null);
+    setIsProfileLoading(true);
+
+    try {
+      const response = await updateCurrentUserProfile({
+        hoTen: profile.hoTen,
+        email: profile.email || undefined,
+        soDienThoai: profile.soDienThoai || undefined,
+      });
+
+      if (response.success) {
+        setProfileSuccess('Cập nhật thông tin thành công!');
+        // Refresh user data in AuthContext
+        await refreshUser();
+      } else {
+        setProfileError(response.message || 'Cập nhật thất bại');
+      }
+    } catch (error) {
+      setProfileError('Có lỗi xảy ra khi cập nhật thông tin');
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+
+  const handleCancelProfileEdit = () => {
+    // Reset to original user data
+    if (user) {
+      const initials = getInitials(user.hoTen);
+      setProfile({
+        hoTen: user.hoTen || '',
+        email: user.email || '',
+        soDienThoai: user.soDienThoai || '',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0D8ABC&color=fff`
+      });
+    }
+    setProfileError(null);
+    setProfileSuccess(null);
+  };
+
   // -- HANDLERS: PASSWORD --
   // Real-time checks
   const isLengthValid = passwords.new.length >= 8;
   const isCaseValid = /[a-z]/.test(passwords.new) && /[A-Z]/.test(passwords.new);
   const isSpecialValid = /[!@#$%^&*(),.?":{}|<>]/.test(passwords.new);
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     setPasswordError(null);
     setPasswordSuccess(null);
 
@@ -122,9 +194,22 @@ const AccountSettings: React.FC = () => {
       return;
     }
 
-    // Success Simulation
-    setPasswordSuccess("Đổi mật khẩu thành công!");
-    setPasswords({ current: '', new: '', confirm: '' });
+    setIsPasswordLoading(true);
+
+    try {
+      const response = await changePasswordApi(passwords.current, passwords.new);
+      
+      if (response.success) {
+        setPasswordSuccess("Đổi mật khẩu thành công!");
+        setPasswords({ current: '', new: '', confirm: '' });
+      } else {
+        setPasswordError(response.message || "Đổi mật khẩu thất bại");
+      }
+    } catch (error) {
+      setPasswordError("Có lỗi xảy ra khi đổi mật khẩu");
+    } finally {
+      setIsPasswordLoading(false);
+    }
   };
 
   const notificationIcons = {
@@ -192,6 +277,21 @@ const AccountSettings: React.FC = () => {
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-800 mb-6">Thông tin cá nhân</h3>
 
+            {/* Profile Notifications */}
+            {profileError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle size={20} />
+                <span className="text-sm font-medium">{profileError}</span>
+              </div>
+            )}
+
+            {profileSuccess && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-700 animate-in fade-in slide-in-from-top-2">
+                <CheckCircle size={20} />
+                <span className="text-sm font-medium">{profileSuccess}</span>
+              </div>
+            )}
+
             <div className="flex items-center gap-6">
               <div className="relative group">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-100 shadow-md">
@@ -215,28 +315,20 @@ const AccountSettings: React.FC = () => {
                   <Camera size={16} />
                 </button>
                 <p className="text-xs text-slate-400 mt-2">
-                  JPG, GIF or PNG. Tối đa 800K
+                  Avatar được tạo tự động từ tên
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Họ</label>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Họ và tên</label>
                 <input
                   type="text"
                   className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={profile.firstName}
-                  onChange={(e) => handleProfileChange('firstName', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên</label>
-                <input
-                  type="text"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={profile.lastName}
-                  onChange={(e) => handleProfileChange('lastName', e.target.value)}
+                  value={profile.hoTen}
+                  onChange={(e) => handleProfileChange('hoTen', e.target.value)}
+                  placeholder="Nhập họ và tên..."
                 />
               </div>
               <div className="md:col-span-2">
@@ -248,6 +340,7 @@ const AccountSettings: React.FC = () => {
                     className="w-full p-3 pl-10 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={profile.email}
                     onChange={(e) => handleProfileChange('email', e.target.value)}
+                    placeholder="Nhập email..."
                   />
                 </div>
               </div>
@@ -258,51 +351,47 @@ const AccountSettings: React.FC = () => {
                   <input
                     type="tel"
                     className="w-full p-3 pl-10 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={profile.phone}
-                    onChange={(e) => handleProfileChange('phone', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Địa chỉ</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-slate-400" size={18} />
-                  <input
-                    type="text"
-                    className="w-full p-3 pl-10 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={profile.address}
-                    onChange={(e) => handleProfileChange('address', e.target.value)}
+                    value={profile.soDienThoai}
+                    onChange={(e) => handleProfileChange('soDienThoai', e.target.value)}
+                    placeholder="Nhập số điện thoại..."
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Giới tính</label>
-                <select
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                  value={profile.gender}
-                  onChange={(e) => handleProfileChange('gender', e.target.value)}
-                >
-                  <option>Nam</option>
-                  <option>Nữ</option>
-                  <option>Khác</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Ngày sinh</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên đăng nhập</label>
                 <input
-                  type="date"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={profile.dob}
-                  onChange={(e) => handleProfileChange('dob', e.target.value)}
+                  type="text"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
+                  value={user?.tenDangNhap || ''}
+                  disabled
+                />
+                <p className="text-xs text-slate-400 mt-1">Không thể thay đổi tên đăng nhập</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Vai trò</label>
+                <input
+                  type="text"
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
+                  value={user?.vaiTro === 'QUAN_LY' ? 'Quản lý' : user?.vaiTro === 'THU_KHO' ? 'Thủ kho' : 'Thu ngân'}
+                  disabled
                 />
               </div>
             </div>
 
             <div className="mt-8 pt-6 flex items-center gap-4 border-t border-slate-100">
-              <button className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30">
+              <button 
+                onClick={handleUpdateProfile}
+                disabled={isProfileLoading}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isProfileLoading && <Loader2 size={16} className="animate-spin" />}
                 Cập nhật
               </button>
-              <button className="px-6 py-2.5 text-slate-600 hover:text-red-600 font-medium text-sm transition-colors">
+              <button 
+                onClick={handleCancelProfileEdit}
+                disabled={isProfileLoading}
+                className="px-6 py-2.5 text-slate-600 hover:text-red-600 font-medium text-sm transition-colors disabled:opacity-50"
+              >
                 Huỷ bỏ
               </button>
             </div>
@@ -412,8 +501,10 @@ const AccountSettings: React.FC = () => {
             <div className="mt-8 pt-6 flex items-center gap-4 border-t border-slate-100">
               <button
                 onClick={handleUpdatePassword}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
+                disabled={isPasswordLoading}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
+                {isPasswordLoading && <Loader2 size={16} className="animate-spin" />}
                 Thay đổi mật khẩu
               </button>
               <button
