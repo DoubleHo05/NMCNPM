@@ -36,18 +36,40 @@ async function getStoreStats() {
             LIMIT 5
         `;
 
+        // Get total revenue
+        const totalRevenue = await prisma.hoaDon.aggregate({
+            _sum: { thanhTien: true }
+        });
+
+        // Get this month's revenue
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthlyRevenue = await prisma.hoaDon.aggregate({
+            where: {
+                ngayLap: { gte: firstDayOfMonth }
+            },
+            _sum: { thanhTien: true }
+        });
+
+        // Get total orders
+        const totalOrders = await prisma.hoaDon.count();
+
         return {
             totalBooks,
             totalStock: totalStock._sum.soLuongTon || 0,
             totalCustomers,
             lowStockBooks,
-            bestSellers
+            bestSellers,
+            totalRevenue: totalRevenue._sum.thanhTien || 0,
+            monthlyRevenue: monthlyRevenue._sum.thanhTien || 0,
+            totalOrders
         };
     } catch (error) {
         console.error('Stats error:', error.message);
-        return { totalBooks: 0, totalStock: 0, totalCustomers: 0, lowStockBooks: [], bestSellers: [] };
+        return { totalBooks: 0, totalStock: 0, totalCustomers: 0, lowStockBooks: [], bestSellers: [], totalRevenue: 0, monthlyRevenue: 0, totalOrders: 0 };
     }
 }
+
 
 /**
  * Call OpenRouter API with key rotation
@@ -65,9 +87,12 @@ async function callAI(prompt, context = '') {
             const openrouter = new OpenRouter({ apiKey });
 
             const completion = await openrouter.chat.send({
-                model: 'tngtech/deepseek-r1t2-chimera:free',
+                model: 'openai/gpt-oss-120b:free',
                 messages: [
-                    { role: 'system', content: context || 'Bạn là trợ lý AI thông minh cho hệ thống quản lý nhà sách. Trả lời ngắn gọn bằng tiếng Việt.' },
+                    {
+                        role: 'system',
+                        content: context || 'Bạn là trợ lý AI nhà sách. QUAN TRỌNG: Chỉ trả lời ngắn gọn 1-2 câu bằng tiếng Việt. KHÔNG giải thích dài dòng. KHÔNG nói "để trả lời câu hỏi này...". Đi thẳng vào câu trả lời.'
+                    },
                     { role: 'user', content: prompt }
                 ],
                 stream: false
@@ -79,9 +104,10 @@ async function callAI(prompt, context = '') {
             }
         } catch (error) {
             lastError = error;
-            // If rate limit, try next key
-            if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-                console.log(`⏱️ Rate limit on chatbot key, trying next...`);
+            // If rate limit or user error, try next key
+            if (error.message?.includes('429') || error.message?.includes('rate limit') ||
+                error.message?.includes('User not found') || error.message?.includes('401')) {
+                console.log(`⏱️ API error on chatbot key, trying next...`);
                 continue;
             }
             console.log(`⚠️ Chatbot error with key: ${error.message}`);
@@ -127,19 +153,18 @@ async function processChat(message) {
 
         // Stats related
         if (lowerMsg.includes('kho') || lowerMsg.includes('tồn') || lowerMsg.includes('sách') ||
-            lowerMsg.includes('thống kê') || lowerMsg.includes('bao nhiêu')) {
+            lowerMsg.includes('thống kê') || lowerMsg.includes('bao nhiêu') || lowerMsg.includes('mấy')) {
             const stats = await getStoreStats();
-            const context = `Thống kê nhà sách:
-- Tổng sách: ${stats.totalBooks} đầu sách
-- Tồn kho: ${stats.totalStock} cuốn
-- Khách hàng: ${stats.totalCustomers}`;
+            const bestSellerNames = stats.bestSellers.map(b => b.TenSach).slice(0, 3).join(', ');
 
-            const prompt = `${context}\n\nCâu hỏi: ${message}\n\nTrả lời ngắn gọn:`;
+            const prompt = `Dữ liệu: ${stats.totalBooks} đầu sách, ${stats.totalStock} cuốn tồn kho, ${stats.totalCustomers} khách hàng. Sách bán chạy: ${bestSellerNames}. 
+Câu hỏi: ${message}
+CHỈ trả lời 1 câu ngắn gọn, đi thẳng vào số liệu:`;
             return await callAI(prompt);
         }
 
         // General question
-        return await callAI(message, 'Bạn là trợ lý AI cho nhà sách. Trả lời hữu ích về quản lý sách, khách hàng, hóa đơn.');
+        return await callAI(message, 'Bạn là trợ lý AI nhà sách. Trả lời 1-2 câu ngắn gọn bằng tiếng Việt. Đi thẳng vào vấn đề.');
 
     } catch (error) {
         console.error('Chat error:', error.message);
