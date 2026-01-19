@@ -10,6 +10,7 @@ import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { updateCurrentUserProfile, changePassword as changePasswordApi } from '../services/userService';
 import { timeAgo } from '../utils/time';
+import { getAvatarUrl, getImageUrl } from '../utils/image';
 
 type Tab = 'profile' | 'security' | 'notification';
 
@@ -51,7 +52,7 @@ const AccountSettings: React.FC = () => {
     hoTen: '',
     email: '',
     soDienThoai: '',
-    avatar: ''
+    avatar: user ? getAvatarUrl(user) : `https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff`
   });
 
   // Loading and message states
@@ -62,12 +63,12 @@ const AccountSettings: React.FC = () => {
   // Initialize profile from user data
   useEffect(() => {
     if (user) {
-      const initials = getInitials(user.hoTen);
+      console.log('User data updated:', user);
       setProfile({
         hoTen: user.hoTen || '',
         email: user.email || '',
         soDienThoai: user.soDienThoai || '',
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0D8ABC&color=fff`
+        avatar: getAvatarUrl(user)
       });
     }
   }, [user]);
@@ -75,6 +76,8 @@ const AccountSettings: React.FC = () => {
   // -- STATE: AVATAR MODAL --
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
+  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // -- STATE: SECURITY --
@@ -91,22 +94,62 @@ const AccountSettings: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewAvatar(url);
+
+      // Convert to base64 for API upload
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setAvatarBase64(base64String);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSaveAvatar = () => {
-    if (previewAvatar) {
-      setProfile(prev => ({ ...prev, avatar: previewAvatar }));
-      setIsAvatarModalOpen(false);
-      setPreviewAvatar(null);
+  const handleSaveAvatar = async () => {
+    if (!previewAvatar || !avatarBase64) return;
+
+    setIsAvatarLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    try {
+      // Call API to update avatar
+      console.log('Sending avatar update...');
+      const response = await updateCurrentUserProfile({
+        avatar: avatarBase64,
+      });
+      console.log('Update response:', response);
+
+      if (response.success) {
+        setProfileSuccess('Cập nhật ảnh đại diện thành công!');
+        // Update local profile state
+        const newAvatar = response.data.user.avatar;
+        console.log('New avatar from API:', newAvatar);
+
+        setProfile(prev => ({ ...prev, avatar: getImageUrl(newAvatar) || prev.avatar }));
+        // Refresh user data in AuthContext
+        await refreshUser();
+        setIsAvatarModalOpen(false);
+        setPreviewAvatar(null);
+      } else {
+        setProfileError(response.message || 'Cập nhật ảnh đại diện thất bại');
+      }
+    } catch (error) {
+      setProfileError('Có lỗi xảy ra khi cập nhật ảnh đại diện');
+    } finally {
+      setIsAvatarLoading(false);
     }
   };
 
   const handleCloseAvatarModal = () => {
     setIsAvatarModalOpen(false);
     setPreviewAvatar(null);
+    setAvatarBase64(null);
+    setProfileError(null);
+    setProfileSuccess(null);
   };
 
   // -- HANDLERS: PROFILE FORM --
@@ -119,7 +162,7 @@ const AccountSettings: React.FC = () => {
 
   const handleUpdateProfile = async () => {
     if (!user) return;
-    
+
     setProfileError(null);
     setProfileSuccess(null);
     setIsProfileLoading(true);
@@ -148,12 +191,11 @@ const AccountSettings: React.FC = () => {
   const handleCancelProfileEdit = () => {
     // Reset to original user data
     if (user) {
-      const initials = getInitials(user.hoTen);
       setProfile({
         hoTen: user.hoTen || '',
         email: user.email || '',
         soDienThoai: user.soDienThoai || '',
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0D8ABC&color=fff`
+        avatar: getAvatarUrl(user)
       });
     }
     setProfileError(null);
@@ -198,7 +240,7 @@ const AccountSettings: React.FC = () => {
 
     try {
       const response = await changePasswordApi(passwords.current, passwords.new);
-      
+
       if (response.success) {
         setPasswordSuccess("Đổi mật khẩu thành công!");
         setPasswords({ current: '', new: '', confirm: '' });
@@ -379,7 +421,7 @@ const AccountSettings: React.FC = () => {
             </div>
 
             <div className="mt-8 pt-6 flex items-center gap-4 border-t border-slate-100">
-              <button 
+              <button
                 onClick={handleUpdateProfile}
                 disabled={isProfileLoading}
                 className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
@@ -387,7 +429,7 @@ const AccountSettings: React.FC = () => {
                 {isProfileLoading && <Loader2 size={16} className="animate-spin" />}
                 Cập nhật
               </button>
-              <button 
+              <button
                 onClick={handleCancelProfileEdit}
                 disabled={isProfileLoading}
                 className="px-6 py-2.5 text-slate-600 hover:text-red-600 font-medium text-sm transition-colors disabled:opacity-50"
@@ -622,9 +664,10 @@ const AccountSettings: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveAvatar}
-                disabled={!previewAvatar}
-                className="px-8 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
+                disabled={!previewAvatar || isAvatarLoading}
+                className="px-8 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors flex items-center gap-2"
               >
+                {isAvatarLoading && <Loader2 size={16} className="animate-spin" />}
                 Lưu
               </button>
             </div>

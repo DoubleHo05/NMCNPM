@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../utils/prisma');
+const { processAvatarImage, deleteOldAvatar } = require('../utils/avatarUtils');
 
 // Get all users với pagination, filter, search
 const getAllUsers = async (req, res) => {
@@ -49,6 +50,7 @@ const getAllUsers = async (req, res) => {
         email: true,
         soDienThoai: true,
         vaiTro: true,
+        avatar: true,
         trangThai: true,
         createdAt: true,
         updatedAt: true,
@@ -93,6 +95,7 @@ const getUserById = async (req, res) => {
         email: true,
         soDienThoai: true,
         vaiTro: true,
+        avatar: true,
         trangThai: true,
         createdAt: true,
         updatedAt: true,
@@ -476,7 +479,8 @@ const changePassword = async (req, res) => {
 const updateCurrentUserProfile = async (req, res) => {
   try {
     const userId = req.user.maNV;
-    const { hoTen, email, soDienThoai } = req.body;
+    const { hoTen, email, soDienThoai, avatar } = req.body;
+
 
     // Get current user
     const existingUser = await prisma.nhanVien.findUnique({
@@ -514,6 +518,27 @@ const updateCurrentUserProfile = async (req, res) => {
       ...(soDienThoai !== undefined && { soDienThoai: soDienThoai || null }),
     };
 
+    // Process avatar if provided
+    if (avatar !== undefined) {
+      if (avatar) {
+        // Process new avatar (base64, URL, or file path)
+        const processedAvatar = processAvatarImage(avatar);
+        updateData.avatar = processedAvatar;
+
+        // Delete old avatar if it's a local file and different from new one
+        if (existingUser.avatar && existingUser.avatar !== processedAvatar) {
+          deleteOldAvatar(existingUser.avatar);
+        }
+      } else {
+        // If avatar is null/empty, remove it
+        updateData.avatar = null;
+        // Delete old avatar file
+        if (existingUser.avatar) {
+          deleteOldAvatar(existingUser.avatar);
+        }
+      }
+    }
+
     // Update user
     const updatedUser = await prisma.nhanVien.update({
       where: { maNV: userId },
@@ -525,6 +550,7 @@ const updateCurrentUserProfile = async (req, res) => {
         email: true,
         soDienThoai: true,
         vaiTro: true,
+        avatar: true,
         trangThai: true,
         updatedAt: true,
       },

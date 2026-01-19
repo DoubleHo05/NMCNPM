@@ -60,6 +60,7 @@ const login = async (req, res) => {
           email: user.email,
           soDienThoai: user.soDienThoai,
           vaiTro: user.vaiTro,
+          avatar: user.avatar,
         },
         accessToken,
         refreshToken,
@@ -141,6 +142,7 @@ const register = async (req, res) => {
           hoTen: newUser.hoTen,
           email: newUser.email,
           vaiTro: newUser.vaiTro,
+          avatar: newUser.avatar,
         },
       },
     });
@@ -220,6 +222,7 @@ const getCurrentUser = async (req, res) => {
         email: true,
         soDienThoai: true,
         vaiTro: true,
+        avatar: true,
         trangThai: true,
         createdAt: true,
       },

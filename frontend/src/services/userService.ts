@@ -106,6 +106,7 @@ export interface UpdateProfileInput {
   hoTen?: string;
   email?: string;
   soDienThoai?: string;
+  avatar?: string;
 }
 
 // Update current user profile (for AccountSettings)

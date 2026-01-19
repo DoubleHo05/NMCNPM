@@ -8,6 +8,7 @@ export interface User {
   email?: string;
   soDienThoai?: string;
   vaiTro: 'QUAN_LY' | 'THU_KHO' | 'THU_NGAN';
+  avatar?: string;
   trangThai: boolean;
 }
 

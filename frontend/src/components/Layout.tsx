@@ -23,6 +23,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { timeAgo } from '../utils/time';
+import { getAvatarUrl } from '../utils/image';
 
 const SidebarItem = ({ to, icon: Icon, label, exact, excludePaths = [] }: { to: string, icon: any, label: string, exact?: boolean, excludePaths?: string[] }) => {
   const location = useLocation();
@@ -89,7 +90,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
   const userDisplayName = getDisplayName(user?.hoTen);
   const userRoleDisplay = getRoleDisplay(user?.vaiTro);
   const userEmail = user?.email || 'user@bookstore.com';
-  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userInitials)}&background=0D8ABC&color=fff`;
+
+  // Use centralized helper for avatar URL
+  const avatarUrl = getAvatarUrl(user);
 
   // -- Dropdown Menu State --
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
