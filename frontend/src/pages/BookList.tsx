@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Search, Filter, Download, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, RotateCcw, Check, RefreshCw, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -16,15 +17,6 @@ const BookList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(initialPage);
   const itemsPerPage = 10;
   const navigate = useNavigate();
-
-  // -- Filter State --
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    category: '',
-    minPrice: '',
-    maxPrice: '',
-    stockStatus: 'all' // 'all', 'low', 'out'
-  });
 
   // Fetch categories from API
   const [apiCategories, setApiCategories] = useState<{ id: number; name: string }[]>([]);
@@ -65,6 +57,14 @@ const BookList: React.FC = () => {
     params.set('page', page.toString());
     setSearchParams(params, { replace: true });
   };
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: '',
+    maxPrice: '',
+    stockStatus: 'all'
+  });
 
   // Reset to page 1 when search/filter changes
   useEffect(() => {
@@ -125,6 +125,25 @@ const BookList: React.FC = () => {
       maxPrice: '',
       stockStatus: 'all'
     });
+  };
+
+  const handleExportExcel = () => {
+    const exportData = filteredBooks.map((book, index) => ({
+      "STT": indexOfFirstItem + index + 1,
+      "Mã Sách": book.id,
+      "Tên sách": book.title,
+      "Thể loại": book.category,
+      "Tác giả": book.author,
+      "Số lượng": book.stock,
+      "Nhà xuất bản": book.publisher,
+      "Năm XB": book.publishYear,
+      "Giá tiền": book.price
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DanhSachSach");
+    XLSX.writeFile(wb, "DanhSachSach.xlsx");
   };
 
   const activeFilterCount = [
@@ -197,7 +216,7 @@ const BookList: React.FC = () => {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-lg font-medium text-sm shadow-sm transition-colors
-                            ${showFilters || activeFilterCount > 0
+                          ${showFilters || activeFilterCount > 0
                     ? 'bg-blue-50 border-blue-200 text-blue-700'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
               >
@@ -307,7 +326,10 @@ const BookList: React.FC = () => {
               )}
             </div>
 
-            <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm shadow-sm transition-colors">
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm shadow-sm transition-colors"
+            >
               <Download size={16} />
               <span>Xuất</span>
             </button>
@@ -384,9 +406,9 @@ const BookList: React.FC = () => {
                       <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden flex-shrink-0 border border-slate-200">
                         <img src={book.imageUrl} alt="" className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-blue-600 text-xs mb-0.5">{book.isbn || book.id}</span>
-                        <p className="font-medium text-slate-900 text-sm leading-tight line-clamp-2">{book.title}</p>
+                      <div>
+                        <div className="font-medium text-slate-900 line-clamp-2" title={book.title}>{book.title}</div>
+                        <div className="text-xs text-slate-500 font-mono mt-1">{book.isbn}</div>
                       </div>
                     </div>
                   </td>

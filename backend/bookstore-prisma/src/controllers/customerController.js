@@ -91,10 +91,22 @@ const createCustomer = async (req, res) => {
       });
     }
 
-    if (!phone) {
+    // Check duplicate phone or email
+    const existing = await prisma.khachHang.findFirst({
+      where: {
+        OR: [
+          { soDienThoai: phone },
+          ...(email ? [{ email }] : [])
+        ]
+      }
+    });
+
+    if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'Số điện thoại là bắt buộc',
+        message: existing.soDienThoai === phone
+          ? 'Số điện thoại đã được đăng ký'
+          : 'Email đã được đăng ký'
       });
     }
 

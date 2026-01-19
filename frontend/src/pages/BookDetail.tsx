@@ -66,21 +66,26 @@ const BookDetail: React.FC = () => {
 
                {/* Left Column: Image Gallery */}
                <div className="md:col-span-5 p-8 border-r border-slate-100 flex flex-col items-center">
-                  <div className="w-full max-w-[360px] aspect-[3/4] mb-6 relative group">
+                  <div className="w-full max-w-[360px] aspect-[3/4] mb-6 relative group bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
                      <img
-                        src={book.imageUrl}
+                        src={(book.imageUrl && book.imageUrl.startsWith('['))
+                           ? JSON.parse(book.imageUrl)[0]
+                           : (book.imageUrl || 'https://placehold.co/300x400?text=No+Image')}
                         alt={book.title}
                         className="w-full h-full object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-105"
                      />
                   </div>
-                  {/* Thumbnails (Mockup) */}
-                  <div className="flex gap-4 mt-4 overflow-x-auto pb-2 w-full justify-center">
-                     {[book.imageUrl, book.imageUrl, book.imageUrl].map((img, i) => (
-                        <div key={i} className={`w-16 h-20 border-2 rounded cursor-pointer overflow-hidden ${i === 0 ? 'border-blue-500' : 'border-transparent hover:border-slate-300'}`}>
-                           <img src={img} alt="" className="w-full h-full object-cover" />
-                        </div>
-                     ))}
-                  </div>
+                  {/* Thumbnails */}
+                  {(book.imageUrl && book.imageUrl.startsWith('[')) && (
+                     <div className="flex gap-2 overflow-x-auto p-2 w-full justify-center">
+                        {JSON.parse(book.imageUrl).map((img: string, idx: number) => (
+                           <div key={idx} className="w-16 h-20 border border-slate-200 rounded cursor-pointer hover:border-blue-500 overflow-hidden shrink-0">
+                              <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
+                           </div>
+                        ))}
+                     </div>
+                  )}
+
                </div>
 
                {/* Right Column: Info */}

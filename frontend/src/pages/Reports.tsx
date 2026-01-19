@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { FileBarChart, CreditCard, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import DatePicker from '../components/DatePicker';
 
 // Pagination Control Component
@@ -185,10 +186,66 @@ const ReportDebt = ({ date }: { date: string }) => {
 const Reports: React.FC = () => {
     // Init with YYYY-MM
     const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 7));
+    const { books, customers } = useStore();
 
-    // Format Month Year for display title
+    const handleExportExcel = () => {
+        // Create a seed based on the selected date to match the mock logic
+        const dateObj = new Date(`${reportDate}-01`);
+        const dateSeed = dateObj.getFullYear() + dateObj.getMonth();
 
+        // 1. Prepare Inventory Data
+        const inventoryData = books.map((book, idx) => {
+            // Replicate the mock logic used in ReportInventory
+            // Note: In pagination, idx resets to 0. 
+            // In full list, idx increments.
+            // Since mock logic was (idx + seed) % 10 and page size is 10,
+            // using the global index effectively works out the same because (10 + seed) % 10 == (0 + seed) % 10
+            const modifier = (idx + dateSeed) % 10;
+            const initial = book.stock + modifier * 5;
+            const incurred = initial - book.stock;
 
+            return {
+                "STT": idx + 1,
+                "Sách": book.title,
+                "Tác giả": book.author,
+                "Tồn đầu": initial,
+                "Phát sinh": incurred,
+                "Tồn cuối": book.stock
+            };
+        });
+
+        // 2. Prepare Debt Data
+        const debtData = customers.map((cust, idx) => {
+            // Replicate mock logic from ReportDebt
+            const modifier = (idx + dateSeed) % 50000;
+            const initial = Math.max(0, cust.currentDebt - modifier);
+            const incurred = cust.currentDebt - initial;
+
+            return {
+                "STT": idx + 1,
+                "Khách hàng": cust.name,
+                "Điện thoại": cust.phone,
+                "Nợ đầu": initial,
+                "Phát sinh": incurred,
+                "Nợ cuối": cust.currentDebt
+            };
+        });
+
+        // 3. Create Workbook and Sheets
+        const wb = XLSX.utils.book_new();
+
+        const wsInventory = XLSX.utils.json_to_sheet(inventoryData);
+        // Adjust column widths roughly
+        wsInventory['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, wsInventory, "Báo cáo tồn");
+
+        const wsDebt = XLSX.utils.json_to_sheet(debtData);
+        wsDebt['!cols'] = [{ wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, wsDebt, "Báo cáo công nợ");
+
+        // 4. Export
+        XLSX.writeFile(wb, `BaoCao_Thang_${reportDate}.xlsx`);
+    };
 
     return (
         <div className="space-y-4 h-[calc(100vh-140px)] flex flex-col">
@@ -211,7 +268,10 @@ const Reports: React.FC = () => {
                             label="Chọn tháng báo cáo"
                         />
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2.5 mt-5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm shadow-sm transition-colors">
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 px-4 py-2.5 mt-5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm shadow-sm transition-colors active:bg-slate-100"
+                    >
                         <Download size={18} />
                         Xuất Excel
                     </button>

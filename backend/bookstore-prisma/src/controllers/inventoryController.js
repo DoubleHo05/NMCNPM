@@ -31,18 +31,23 @@ const importGoods = async (req, res) => {
 
             // 2. Tạo chi tiết phiếu nhập và cập nhật sách
             for (const item of chiTietNhap) {
-                let currentMaSach = item.maSach;
+                let currentMaSach = item.maSach ? parseInt(item.maSach) : null;
 
                 // Kiểm tra xem sách có tồn tại không
-                const existingBook = await prisma.sach.findUnique({
-                    where: { maSach: currentMaSach },
-                });
+                let existingBook = null;
+                if (currentMaSach) {
+                    existingBook = await prisma.sach.findUnique({
+                        where: { maSach: currentMaSach },
+                    });
+                }
+
                 // Nếu sách chưa tồn tại (ID gửi lên là ID ảo/rác), ta reset currentMaSach để logic bên dưới chạy đúng
                 if (!existingBook) {
                     currentMaSach = null;
                 }
 
                 // [NEW] Logic: Check if book exists by Title AND Author names (to avoid duplication)
+                // Only if we don't have a valid ID yet
                 if (!currentMaSach && item.tenSach) {
                     // Find potential duplicates
                     const similarBooks = await prisma.sach.findMany({
@@ -60,7 +65,7 @@ const importGoods = async (req, res) => {
 
                     // Check if any similar book has the same author
                     const duplicateBook = similarBooks.find(b =>
-                        b.tacGia.some(t => t.tacGia.tenTacGia.toLowerCase() === item.tacGia?.toLowerCase())
+                        b.tacGia.some(t => item.tacGia && t.tacGia.tenTacGia.toLowerCase() === item.tacGia.toLowerCase())
                     );
 
                     if (duplicateBook) {
