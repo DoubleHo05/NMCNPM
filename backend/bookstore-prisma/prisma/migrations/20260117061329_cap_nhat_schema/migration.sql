@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `khachhang` ADD COLUMN `DiaChi` VARCHAR(255) NULL;
+
+-- AlterTable
+ALTER TABLE `sach` ADD COLUMN `HinhAnh` LONGTEXT NULL,
+    ADD COLUMN `TonKhoToiThieu` INTEGER NULL DEFAULT 10;
