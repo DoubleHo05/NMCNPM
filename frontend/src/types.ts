@@ -41,12 +41,17 @@ export interface Invoice {
   id: string;
   date: string;
   customerId: string;
+  customerName?: string;
+  employeeName?: string;
   items: {
     bookId: string;
+    bookName?: string;
     quantity: number;
     price: number;
   }[];
   totalAmount: number;
+  discount?: number;
+  finalAmount?: number;
 }
 
 export interface PaymentReceipt {

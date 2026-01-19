@@ -235,7 +235,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
               <SidebarItem to="/admin/users" icon={Shield} label="Khách hàng" />
             </>
           )}
-          <SidebarItem to="/reports" icon={FileText} label="Báo cáo (BM5)" />
+          <SidebarItem to="/reports" icon={FileText} label="Báo cáo (BM5)" excludePaths={['/reports/revenue']} />
           <SidebarItem to="/reports/revenue" icon={DollarSign} label="Báo cáo Doanh thu" />
           <SidebarItem to="/settings" icon={Settings} label="Quy định (QĐ6)" />
           <SidebarItem to="/manage/categories" icon={Book} label="Thể loại" />

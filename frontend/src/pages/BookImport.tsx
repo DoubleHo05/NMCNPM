@@ -132,7 +132,7 @@ const ImportHistoryView: React.FC = () => {
 };
 
 const BookImport: React.FC = () => {
-  const { importBooks, rules, addNotification } = useStore();
+  const { importBooks, rules, addNotification, books } = useStore();
   const { canImportBooks, userRole } = usePermissions();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -217,9 +217,46 @@ const BookImport: React.FC = () => {
   const [currentBook, setCurrentBook] = useState<Book>(initialBookState);
   const [currentQuantity, setCurrentQuantity] = useState<number>(rules.minImportQuantity);
 
+  // Mode Selection: 'EXISTING' or 'NEW'
+  const [mode, setMode] = useState<'EXISTING' | 'NEW'>('NEW');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBookId, setSelectedBookId] = useState<string>('');
+  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+
+  // Filter books for autocomplete
+  // Filter books for autocomplete
+  useEffect(() => {
+    if (mode === 'EXISTING' && searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = books.filter(b =>
+        b.title.toLowerCase().includes(lowerQuery) ||
+        b.author.toLowerCase().includes(lowerQuery) ||
+        (b.isbn && b.isbn.includes(lowerQuery))
+      );
+      setFilteredBooks(filtered);
+    } else {
+      setFilteredBooks([]);
+    }
+  }, [searchQuery, mode, books]);
+
+  const handleSelectExistingBook = (book: Book) => {
+    setSelectedBookId(book.id);
+    setSearchQuery(book.title);
+    setFilteredBooks([]);
+    setCurrentBook({
+      ...book,
+      stock: book.stock,
+    });
+    // Set default import price (e.g. 70% of sell price or keep 0)
+    // We keep currentQuantity as minimum
+  };
+
   const handleOpenModal = () => {
     setCurrentBook({ ...initialBookState, id: `B${Math.floor(Math.random() * 100000)}` });
     setCurrentQuantity(rules.minImportQuantity);
+    setMode('NEW');
+    setSearchQuery('');
+    setSelectedBookId('');
     setError(null);
     setModalErrors({});
     setIsModalOpen(true);
@@ -466,8 +503,92 @@ const BookImport: React.FC = () => {
               </button>
             </div>
 
+            {/* Mode Switcher */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-center">
+              <div className="bg-slate-200 p-1 rounded-lg inline-flex">
+                <button
+                  type="button"
+                  onClick={() => { setMode('NEW'); setCurrentBook(initialBookState); setSearchQuery(''); setSelectedBookId(''); }}
+                  className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'NEW'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                  Sách mới
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('EXISTING'); setSearchQuery(''); setSelectedBookId(''); }}
+                  className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'EXISTING'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                  Sách đã có
+                </button>
+              </div>
+            </div>
+
             <form onSubmit={handleAddBookToTicket} noValidate className="flex flex-col flex-1 overflow-hidden">
               <div className="overflow-y-auto flex-1 p-6">
+                {/* Search for Existing Book */}
+                {mode === 'EXISTING' && (
+                  <div className="mb-6 relative">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Tìm kiếm sách <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Nhập tên sách, tác giả hoặc ISBN..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          if (selectedBookId) {
+                            setSelectedBookId('');
+                            setCurrentBook(initialBookState);
+                          }
+                        }}
+                      />
+                      <div className="absolute left-3 top-3.5 text-slate-400">
+                        {/* Search Icon */}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                      </div>
+                    </div>
+
+                    {/* Dropdown Results */}
+                    {searchQuery && !selectedBookId && filteredBooks.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {filteredBooks.map(book => (
+                          <div
+                            key={book.id}
+                            onClick={() => handleSelectExistingBook(book)}
+                            className="p-3 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-slate-50 last:border-0"
+                          >
+                            <div className="w-10 h-14 bg-slate-200 rounded overflow-hidden flex-shrink-0">
+                              <img
+                                src={book.imageUrl || 'https://via.placeholder.com/40x60?text=Book'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/40x60?text=Error'; }}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-900">{book.title}</p>
+                              <p className="text-xs text-slate-500">{book.author} • ISBN: {book.isbn || 'N/A'} • Tồn: <span className="font-bold text-blue-600">{book.stock}</span></p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedBookId && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-3 text-blue-800">
+                        <AlertCircle size={20} />
+                        <span className="text-sm font-medium">Đã chọn sách: <b>{currentBook.title}</b>. Bạn chỉ cần nhập số lượng và giá nhập.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Hiển thị tổng hợp lỗi validation nếu có */}
                 {Object.keys(modalErrors).length > 0 && (
                   <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -493,10 +614,11 @@ const BookImport: React.FC = () => {
                           <label className="block text-sm font-medium text-slate-700 mb-2">Tên sách <span className="text-red-500">*</span></label>
                           <input
                             type="text"
-                            className={`w-full p-2.5 bg-white border rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none ${modalErrors.title ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
+                            className={`w-full p-2.5 bg-white border rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none ${modalErrors.title ? 'border-red-500 bg-red-50' : 'border-slate-200'} ${selectedBookId ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="Nhập tên sách..."
                             value={currentBook.title}
                             onChange={e => handleModalChange('title', e.target.value)}
+                            readOnly={!!selectedBookId}
                           />
                           {modalErrors.title && <p className="text-red-500 text-xs mt-1 font-medium">{modalErrors.title}</p>}
                         </div>
@@ -504,21 +626,23 @@ const BookImport: React.FC = () => {
                           <label className="block text-sm font-medium text-slate-700 mb-2">ISBN</label>
                           <input
                             type="text"
-                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                            className={`w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none ${selectedBookId ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="VD: 978-604-xxx-xxx"
                             maxLength={20}
                             value={currentBook.isbn || ''}
                             onChange={e => handleModalChange('isbn', e.target.value)}
+                            readOnly={!!selectedBookId}
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">Tác giả <span className="text-red-500">*</span></label>
                           <input
                             type="text"
-                            className={`w-full p-2.5 bg-white border rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none ${modalErrors.author ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
+                            className={`w-full p-2.5 bg-white border rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none ${modalErrors.author ? 'border-red-500 bg-red-50' : 'border-slate-200'} ${selectedBookId ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="Tên tác giả"
                             value={currentBook.author}
                             onChange={e => handleModalChange('author', e.target.value)}
+                            readOnly={!!selectedBookId}
                           />
                           {modalErrors.author && <p className="text-red-500 text-xs mt-1 font-medium">{modalErrors.author}</p>}
                         </div>

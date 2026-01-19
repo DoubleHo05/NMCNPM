@@ -16,6 +16,9 @@ import { getAllCustomers } from '../services/customerService';
 import { useAuth } from './AuthContext';
 
 interface StoreContextType {
+  isLoadingBooks: boolean;
+  booksError: string | null;
+  refreshBooks: () => Promise<void>;
   books: Book[];
   customers: Customer[];
   rules: SystemRules;
@@ -52,6 +55,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [importHistory, setImportHistory] = useState<ImportTicket[]>([]);
   const [invoiceHistory, setInvoiceHistory] = useState<Invoice[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentReceipt[]>([]);
+
+  // Loading & Error states
+  const [isLoadingBooks, setIsLoadingBooks] = useState(false);
+  const [booksError, setBooksError] = useState<string | null>(null);
 
   // Mapping from Frontend Rule Keys to Backend Setting Names
   const SETTING_Name_MAPPING: Record<keyof SystemRules, string> = {
@@ -97,27 +104,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setImportHistory((historyRes as any).data);
         }
 
-        // [NEW] Fetch Books from Real DB
-        const booksRes = await bookService.getAllBooks();
-        if (booksRes && (booksRes as any).success) {
-          // Map backend data to frontend Book interface
-          const apiBooks = (booksRes as any).data || [];
-          const mappedBooks: Book[] = apiBooks.map((b: any) => ({
-            id: b.id || b.maSach?.toString() || '',
-            isbn: b.isbn || b.ISBN || '',
-            title: b.title || b.tenSach || '',
-            category: b.category || b.theLoai || '',
-            author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || ''),
-            stock: b.stock ?? b.soLuongTon ?? 0,
-            price: b.salePrice || b.price || b.giaBanLe || 0,
-            publisher: b.publisher || b.nhaXuatBan || '',
-            publishYear: b.publishYear || new Date().getFullYear(),
-            imageUrl: b.imageUrl || b.hinhAnh || '',
-            description: b.description || b.moTa || '',
-          }));
-          setBooks(mappedBooks);
-        }
-
         // Fetch Customers from Real DB
         try {
           const customersData = await getAllCustomers();
@@ -132,10 +118,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }));
           setCustomers(mappedCustomers);
         } catch (customerErr) {
-          console.error('Failed to fetch customers, using defaults:', customerErr);
+          console.error('Failed to fetch customers:', customerErr);
         }
 
-        // [NEW] Fetch Invoice History
+        // Fetch Invoice History
         const token = localStorage.getItem('accessToken');
         let authHeaders = {};
         if (token) {
@@ -143,36 +129,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         try {
-          const invRes = await fetch('http://localhost:5000/api/invoices', {
-            headers: { ...authHeaders }
-          });
+          const invRes = await fetch('http://localhost:5000/api/invoices', { headers: { ...authHeaders } });
           const invData = await invRes.json();
           if (invData.success) {
-            setInvoiceHistory(invData.data.map((inv: any) => ({
-              ...inv,
-              customerId: inv.customerId?.toString() || ''
-            })));
+            setInvoiceHistory(invData.data.map((inv: any) => ({ ...inv, customerId: inv.customerId?.toString() || '' })));
           }
-        } catch (err) {
-          console.error('Failed to fetch invoice history:', err);
-        }
+        } catch (err) { console.error('Failed to fetch invoices:', err); }
 
-        // [NEW] Fetch Payment History
+        // Fetch Payment History
         try {
-          const payRes = await fetch('http://localhost:5000/api/payments', {
-            headers: { ...authHeaders }
-          });
+          const payRes = await fetch('http://localhost:5000/api/payments', { headers: { ...authHeaders } });
           const payData = await payRes.json();
           if (payData.success) {
-            setPaymentHistory(payData.data.map((pay: any) => ({
-              ...pay,
-              customerId: pay.customerId?.toString() || '',
-              customerName: pay.customerName || ''
-            })));
+            setPaymentHistory(payData.data.map((pay: any) => ({ ...pay, customerId: pay.customerId?.toString() || '', customerName: pay.customerName || '' })));
           }
-        } catch (err) {
-          console.error('Failed to fetch payment history:', err);
-        }
+        } catch (err) { console.error('Failed to fetch payments:', err); }
+
+        // Fetch books via reusable function
+        await refreshBooks();
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -181,6 +155,41 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     fetchData();
   }, [user]); // Re-fetch if user changes, though mostly global
+
+  // [NEW] Refresh Books Function
+  const refreshBooks = async () => {
+    setIsLoadingBooks(true);
+    setBooksError(null);
+    try {
+      const booksRes = await bookService.getAllBooks();
+      if (booksRes && (booksRes as any).success) {
+        const apiBooks = (booksRes as any).data || [];
+        const mappedBooks: Book[] = apiBooks.map((b: any) => ({
+          id: b.id || b.maSach?.toString() || '',
+          isbn: b.isbn || b.ISBN || '',
+          title: b.title || b.tenSach || '',
+          category: b.category || b.theLoai || '',
+          author: Array.isArray(b.authors) ? b.authors.join(', ') : (b.author || ''),
+          stock: b.stock ?? b.soLuongTon ?? 0,
+          price: b.salePrice || b.price || b.giaBanLe || 0,
+          publisher: b.publisher || b.nhaXuatBan || '',
+          publishYear: b.publishYear || new Date().getFullYear(),
+          imageUrl: b.imageUrl || b.hinhAnh || '',
+          description: b.description || b.moTa || '',
+        }));
+        setBooks(mappedBooks);
+      } else {
+        setBooksError('Failed to fetch books');
+      }
+    } catch (err: any) {
+      console.error('Error fetching books:', err);
+      setBooksError(err.message || 'Error fetching books');
+    } finally {
+      setIsLoadingBooks(false);
+    }
+  };
+
+
 
   // --- NOTIFICATION HANDLERS ---
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
@@ -346,7 +355,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const createInvoice = async (customerId: string, items: { bookId: string; quantity: number; price: number }[]): Promise<{ success: boolean; message: string; totalAmount: number }> => {
+  const createInvoice = async (customerId: string, items: { bookId: string; quantity: number; price: number }[]): Promise<{ success: boolean; message: string; totalAmount: number; finalAmount?: number; id?: string; }> => {
     const customer = customers.find(c => c.id === customerId);
     if (!customer && customerId) return { success: false, message: 'Khách hàng không tồn tại', totalAmount: 0 };
     if (!items || items.length === 0) return { success: false, message: 'Chưa chọn sách', totalAmount: 0 };
@@ -603,6 +612,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       invoiceHistory,
       paymentHistory, // Expose payment history
       updateRules,
+      isLoadingBooks,
+      booksError,
+      refreshBooks,
       importBooks,
       createInvoice,
       collectMoney,

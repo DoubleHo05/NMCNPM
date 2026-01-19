@@ -124,35 +124,43 @@ const InvoiceCreate: React.FC = () => {
 
     if (invoiceResult.success) {
       // 2. Record Payment if amount > 0 (also async)
+      let paymentSuccess = true;
       if (amountPaid > 0) {
-        await collectMoney(customerId, amountPaid);
+        const payResult = await collectMoney(customerId, amountPaid);
+        if (!payResult.success) {
+          showToast(`Thanh toán thất bại: ${payResult.message}`, 'error');
+          paymentSuccess = false;
+        }
       }
 
-      const customer = getCustomer(customerId);
-      const finalAmount = invoiceResult.finalAmount ?? invoiceResult.totalAmount;
-      const newDebt = customer ? customer.currentDebt + finalAmount - amountPaid : 0;
+      if (paymentSuccess) {
+        // Only show success if payment succeeded (or wasn't needed)
+        const customer = getCustomer(customerId);
+        const finalAmount = invoiceResult.finalAmount ?? invoiceResult.totalAmount;
+        const newDebt = customer ? customer.currentDebt + finalAmount - amountPaid : 0;
 
-      // Persist data for Success Modal
-      setLastSuccessData({
-        invoiceId: invoiceResult.id || 'N/A',
-        customerName: customer?.name || 'Khách vãng lai',
-        totalAmount: invoiceResult.totalAmount, // Giá trị đơn hàng
-        amountPaid: amountPaid,
-        remainingDebt: newDebt // Nợ sau khi mua & trả tiền
-      });
+        // Persist data for Success Modal
+        setLastSuccessData({
+          invoiceId: invoiceResult.id || 'N/A',
+          customerName: customer?.name || 'Khách vãng lai',
+          totalAmount: invoiceResult.totalAmount, // Giá trị đơn hàng
+          amountPaid: amountPaid,
+          remainingDebt: newDebt // Nợ sau khi mua & trả tiền
+        });
 
-      addNotification({
-        type: 'invoice',
-        title: 'Bán hàng thành công',
-        message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
-      });
+        addNotification({
+          type: 'invoice',
+          title: 'Bán hàng thành công',
+          message: `Đơn hàng ${formatCurrency(invoiceResult.totalAmount)}đ cho ${customer?.name}`
+        });
 
-      // Show success in modal
-      setCompletedInvoiceId('HD-' + Date.now());
+        // Show success in modal
+        setCompletedInvoiceId('HD-' + Date.now());
 
-      // Cleanup cart, but keep modal open
-      setItems([]);
-      setCustomerId('');
+        // Cleanup cart, but keep modal open
+        setItems([]);
+        setCustomerId('');
+      }
     } else {
       showToast(invoiceResult.message, 'error');
       setIsPaymentModalOpen(false); // Close on error
@@ -164,7 +172,7 @@ const InvoiceCreate: React.FC = () => {
   const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
+    <div className="min-h-[calc(100vh-6rem)] flex flex-col gap-4 pb-10">
       {/* Header Tabs */}
       <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
         <div className="flex gap-2">
@@ -205,11 +213,11 @@ const InvoiceCreate: React.FC = () => {
       </div>
 
       {activeTab === 'pos' ? (
-        <div className="flex-1 flex gap-4 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4">
           {/* Left: Product List */}
-          <div className="flex-[7] overflow-y-auto pr-2 pb-20">
+          <div className="flex-[7] pr-2">
             {filteredBooks.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400">
                 <Package size={48} className="mb-4 opacity-50" />
                 <p>Không tìm thấy sách nào</p>
               </div>
@@ -255,160 +263,162 @@ const InvoiceCreate: React.FC = () => {
           </div>
 
           {/* Right: Cart Panel */}
-          <div className="flex-[3] bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
-            {/* Customer Select */}
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center bg-white border border-slate-300 rounded-lg px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
-                <User size={18} className={`mr-2 ${customerId ? 'text-blue-600 ' : 'text-slate-400'}`} />
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="flex-1 bg-transparent text-sm font-medium outline-none text-slate-800"
-                >
-                  <option value="">Chọn khách lẻ...</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} - Nợ: {c.currentDebt.toLocaleString()}đ
-                    </option>
-                  ))}
-                </select>
+          <div className="flex-[3] flex flex-col">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden sticky top-4">
+              {/* Customer Select */}
+              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center bg-white border border-slate-300 rounded-lg px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                  <User size={18} className={`mr-2 ${customerId ? 'text-blue-600 ' : 'text-slate-400'}`} />
+                  <select
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                    className="flex-1 bg-transparent text-sm font-medium outline-none text-slate-800"
+                  >
+                    <option value="">Chọn khách lẻ...</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} - Nợ: {c.currentDebt.toLocaleString()}đ
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {customerId && (
+                  <div className="mt-2 flex justify-between text-xs px-1">
+                    <span className="text-slate-500">Tiền nợ:</span>
+                    <span className="font-bold text-amber-600">{formatCurrency(getCustomer(customerId)?.currentDebt || 0)}đ</span>
+                  </div>
+                )}
               </div>
-              {customerId && (
-                <div className="mt-2 flex justify-between text-xs px-1">
-                  <span className="text-slate-500">Tiền nợ:</span>
-                  <span className="font-bold text-amber-600">{formatCurrency(getCustomer(customerId)?.currentDebt || 0)}đ</span>
-                </div>
-              )}
-            </div>
 
-            {/* Items List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-2">
-              {items.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                  <ShoppingCart size={40} className="mb-3 opacity-20" />
-                  <p className="text-sm">Giỏ hàng trống</p>
-                </div>
-              ) : (
-                items.map(item => {
-                  const book = books.find(b => b.id === item.bookId);
-                  if (!book) return null;
-                  return (
-                    <div key={item.bookId} className="flex gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 group">
-                      <div className="w-12 h-16 bg-white rounded border border-slate-200 overflow-hidden shrink-0">
-                        {book.imageUrl && <img src={book.imageUrl} className="w-full h-full object-cover" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-slate-900 truncate">{book.title}</h4>
-                        <p className="text-xs text-blue-600 font-bold mt-1">{formatCurrency(book.price)}đ</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {/* Qty Controls */}
-                        <div className="flex items-center bg-white rounded border border-slate-300 h-7 overflow-hidden">
-                          <button onClick={() => handleUpdateQuantity(item.bookId, -1)} className="px-2 hover:bg-slate-100 text-slate-600"><Minus size={12} /></button>
-                          <input
-                            type="number"
-                            min="1"
-                            max={book.stock}
-                            value={item.quantity}
-                            onChange={(e) => handleSetQuantity(item.bookId, parseInt(e.target.value) || 1)}
-                            className="w-10 text-center text-xs font-bold border-x border-slate-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                          <button onClick={() => handleUpdateQuantity(item.bookId, 1)} className="px-2 hover:bg-slate-100 text-slate-600"><Plus size={12} /></button>
+              {/* Items List */}
+              <div className="p-2 space-y-2 max-h-[50vh] overflow-y-auto">
+                {items.length === 0 ? (
+                  <div className="py-8 flex flex-col items-center justify-center text-slate-400">
+                    <ShoppingCart size={40} className="mb-3 opacity-20" />
+                    <p className="text-sm">Giỏ hàng trống</p>
+                  </div>
+                ) : (
+                  items.map(item => {
+                    const book = books.find(b => b.id === item.bookId);
+                    if (!book) return null;
+                    return (
+                      <div key={item.bookId} className="flex gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 group">
+                        <div className="w-12 h-16 bg-white rounded border border-slate-200 overflow-hidden shrink-0">
+                          {book.imageUrl && <img src={book.imageUrl} className="w-full h-full object-cover" />}
                         </div>
-                        <button onClick={() => handleRemoveFromCart(item.bookId)} className="text-slate-400 hover:text-red-500 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-slate-900 truncate">{book.title}</h4>
+                          <p className="text-xs text-blue-600 font-bold mt-1">{formatCurrency(book.price)}đ</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {/* Qty Controls */}
+                          <div className="flex items-center bg-white rounded border border-slate-300 h-7 overflow-hidden">
+                            <button onClick={() => handleUpdateQuantity(item.bookId, -1)} className="px-2 hover:bg-slate-100 text-slate-600"><Minus size={12} /></button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={book.stock}
+                              value={item.quantity}
+                              onChange={(e) => handleSetQuantity(item.bookId, parseInt(e.target.value) || 1)}
+                              className="w-10 text-center text-xs font-bold border-x border-slate-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button onClick={() => handleUpdateQuantity(item.bookId, 1)} className="px-2 hover:bg-slate-100 text-slate-600"><Plus size={12} /></button>
+                          </div>
+                          <button onClick={() => handleRemoveFromCart(item.bookId)} className="text-slate-400 hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Footer Total */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50">
-              {/* Quy định hiển thị */}
-              <div className="text-xs bg-blue-50 text-blue-700 p-2 rounded mb-3 border border-blue-100">
-                <strong>QĐ2:</strong> Nợ tối đa {formatCurrency(rules.maxCustomerDebt)}đ. Tồn tối thiểu sau bán: {rules.minStockAfterSale} cuốn.
+                    );
+                  })
+                )}
               </div>
 
-              {/* Kiểm tra vi phạm QĐ2 */}
-              {customerId && (() => {
-                const customer = getCustomer(customerId);
-                const currentDebt = customer?.currentDebt || 0;
-                const newDebt = currentDebt + cartTotal;
-                const violations: string[] = [];
+              {/* Footer Total */}
+              <div className="p-4 border-t border-slate-200 bg-slate-50">
+                {/* Quy định hiển thị */}
+                <div className="text-xs bg-blue-50 text-blue-700 p-2 rounded mb-3 border border-blue-100">
+                  <strong>QĐ2:</strong> Nợ tối đa {formatCurrency(rules.maxCustomerDebt)}đ. Tồn tối thiểu sau bán: {rules.minStockAfterSale} cuốn.
+                </div>
 
-                // Vi phạm nợ tối đa
-                if (newDebt > rules.maxCustomerDebt) {
-                  violations.push(`Nợ sau bán (${formatCurrency(newDebt)}đ) vượt quá giới hạn ${formatCurrency(rules.maxCustomerDebt)}đ`);
-                }
+                {/* Kiểm tra vi phạm QĐ2 */}
+                {customerId && (() => {
+                  const customer = getCustomer(customerId);
+                  const currentDebt = customer?.currentDebt || 0;
+                  const newDebt = currentDebt + cartTotal;
+                  const violations: string[] = [];
 
-                // Vi phạm tồn kho tối thiểu
-                const stockViolations = items.filter(item => {
-                  const book = books.find(b => b.id === item.bookId);
-                  if (book) {
-                    const remainingStock = book.stock - item.quantity;
-                    return remainingStock < rules.minStockAfterSale;
+                  // Vi phạm nợ tối đa
+                  if (newDebt > rules.maxCustomerDebt) {
+                    violations.push(`Nợ sau bán (${formatCurrency(newDebt)}đ) vượt quá giới hạn ${formatCurrency(rules.maxCustomerDebt)}đ`);
                   }
-                  return false;
-                });
 
-                if (stockViolations.length > 0) {
-                  stockViolations.forEach(item => {
+                  // Vi phạm tồn kho tối thiểu
+                  const stockViolations = items.filter(item => {
                     const book = books.find(b => b.id === item.bookId);
                     if (book) {
-                      const remaining = book.stock - item.quantity;
-                      violations.push(`"${book.title}": tồn kho sau bán ${remaining} cuốn (tối thiểu ${rules.minStockAfterSale})`);
+                      const remainingStock = book.stock - item.quantity;
+                      return remainingStock < rules.minStockAfterSale;
                     }
+                    return false;
                   });
-                }
 
-                if (violations.length > 0) {
-                  return (
-                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
-                      <div className="flex items-center gap-1 font-semibold mb-1">
-                        <AlertCircle size={14} />
-                        Vi phạm QĐ2:
+                  if (stockViolations.length > 0) {
+                    stockViolations.forEach(item => {
+                      const book = books.find(b => b.id === item.bookId);
+                      if (book) {
+                        const remaining = book.stock - item.quantity;
+                        violations.push(`"${book.title}": tồn kho sau bán ${remaining} cuốn (tối thiểu ${rules.minStockAfterSale})`);
+                      }
+                    });
+                  }
+
+                  if (violations.length > 0) {
+                    return (
+                      <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
+                        <div className="flex items-center gap-1 font-semibold mb-1">
+                          <AlertCircle size={14} />
+                          Vi phạm QĐ2:
+                        </div>
+                        <ul className="ml-4 list-disc space-y-0.5">
+                          {violations.map((v, i) => <li key={i}>{v}</li>)}
+                        </ul>
                       </div>
-                      <ul className="ml-4 list-disc space-y-0.5">
-                        {violations.map((v, i) => <li key={i}>{v}</li>)}
-                      </ul>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+                    );
+                  }
+                  return null;
+                })()}
 
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Tạm tính</span>
-                  <span className="font-semibold">{formatCurrency(cartTotal)}đ</span>
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Tạm tính</span>
+                    <span className="font-semibold">{formatCurrency(cartTotal)}đ</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
+                    <span>Tổng tiền</span>
+                    <span className="text-xl text-blue-600">{formatCurrency(cartTotal)}đ</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
-                  <span>Tổng tiền</span>
-                  <span className="text-xl text-blue-600">{formatCurrency(cartTotal)}đ</span>
-                </div>
-              </div>
 
-              <button
-                onClick={() => setIsPaymentModalOpen(true)}
-                disabled={items.length === 0 || !customerId}
-                className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2
+                <button
+                  onClick={() => setIsPaymentModalOpen(true)}
+                  disabled={items.length === 0 || !customerId}
+                  className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2
                     ${items.length === 0 || !customerId
-                    ? 'bg-slate-300 cursor-not-allowed shadow-none'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'}`}
-              >
-                <DollarSign size={20} /> Thanh toán
-              </button>
-              {!customerId && items.length > 0 && (
-                <div className="text-xs text-center text-red-500 mt-2 font-medium bg-red-50 py-1 rounded">Vui lòng chọn khách hàng</div>
-              )}
+                      ? 'bg-slate-300 cursor-not-allowed shadow-none'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'}`}
+                >
+                  <DollarSign size={20} /> Thanh toán
+                </button>
+                {!customerId && items.length > 0 && (
+                  <div className="text-xs text-center text-red-500 mt-2 font-medium bg-red-50 py-1 rounded">Vui lòng chọn khách hàng</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 flex flex-col">
           {/* History Tab Implementation */}
           {activeTab === 'history' && (
             <HistoryTab />

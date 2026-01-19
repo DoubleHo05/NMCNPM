@@ -106,11 +106,14 @@ const createPayment = async (req, res) => {
     const { customerId, amount, paymentMethod = 'TIEN_MAT' } = req.body;
 
     if (!customerId || !amount) {
+      console.log('CreatePayment Failed: Missing fields', { customerId, amount });
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập khách hàng và số tiền',
       });
     }
+
+    console.log('CreatePayment Request:', { customerId, amount, paymentMethod });
 
     // Tìm khách hàng
     const customer = await prisma.khachHang.findUnique({
@@ -192,10 +195,10 @@ const createPayment = async (req, res) => {
       message: 'Thu tiền thành công',
     });
   } catch (error) {
-    console.error('Error creating payment:', error);
+    console.error('CRITICAL Error creating payment:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi tạo phiếu thu',
+      message: 'Lỗi server khi tạo phiếu thu',
       error: error.message,
     });
   }
