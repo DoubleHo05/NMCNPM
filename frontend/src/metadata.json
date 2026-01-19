@@ -1,0 +1,5 @@
+{
+  "name": "BookStore Manager",
+  "description": "A comprehensive bookstore management system handling imports, sales, debt collection, and reporting with configurable business rules.",
+  "requestFramePermissions": []
+}
