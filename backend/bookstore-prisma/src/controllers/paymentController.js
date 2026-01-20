@@ -113,6 +113,13 @@ const createPayment = async (req, res) => {
       });
     }
 
+    if (amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số tiền thu phải lớn hơn 0',
+      });
+    }
+
     console.log('CreatePayment Request:', { customerId, amount, paymentMethod });
 
     // Tìm khách hàng
@@ -127,7 +134,40 @@ const createPayment = async (req, res) => {
       });
     }
 
-    // Tìm hóa đơn chưa thanh toán của khách hàng
+    const currentDebt = parseFloat(customer.tienNo) || 0;
+
+    // Kiểm tra khách hàng có nợ không
+    if (currentDebt <= 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'Khách hàng không có nợ cần thanh toán',
+        errorCode: 'NO_DEBT',
+      });
+    }
+
+    // ===== KIỂM TRA QĐ4: Số tiền thu không vượt quá số nợ hiện tại =====
+    // Lấy quy định từ database
+    const rules = await prisma.quyDinh.findMany();
+    const rulesMap = {};
+    rules.forEach((rule) => {
+      rulesMap[rule.tenQuyDinh] = rule.giaTri;
+    });
+
+    // Kiểm tra xem quy định QĐ4 có được bật không (mặc định là bật)
+    const usePaymentRule = rulesMap['SuDungQuyDinhThuTien'] !== 'false' && rulesMap['SuDungQuyDinhThuTien'] !== '0';
+
+    if (usePaymentRule && amount > currentDebt) {
+      return res.status(422).json({
+        success: false,
+        message: `Số tiền thu (${amount.toLocaleString()}đ) vượt quá số tiền nợ hiện tại (${currentDebt.toLocaleString()}đ). Vui lòng nhập số tiền nhỏ hơn hoặc bằng số nợ.`,
+        errorCode: 'PAYMENT_EXCEED_DEBT',
+        data: {
+          requestedAmount: amount,
+          currentDebt: currentDebt,
+        },
+      });
+    }
+
     // Tìm hóa đơn chưa thanh toán của khách hàng
     let unpaidInvoice = await prisma.hoaDonBanSach.findFirst({
       where: {
@@ -170,27 +210,28 @@ const createPayment = async (req, res) => {
       });
 
       // 2. Giảm tiền nợ khách hàng
+      const newDebt = currentDebt - amount;
       await tx.khachHang.update({
         where: { maKH: parseInt(customerId) },
         data: {
-          tienNo: {
-            decrement: amount,
-          },
+          tienNo: newDebt,
         },
       });
 
-      return newPayment;
+      return { payment: newPayment, debtBefore: currentDebt, debtAfter: newDebt };
     });
 
     res.status(201).json({
       success: true,
       data: {
-        id: result.maPhieuThu.toString(),
-        date: result.ngayThu?.toISOString(),
+        id: result.payment.maPhieuThu.toString(),
+        date: result.payment.ngayThu?.toISOString(),
         customerId: customerId,
         customerName: customer.tenKH,
-        amount: parseFloat(result.soTienThu),
-        paymentMethod: result.phuongThucThanhToan,
+        amount: parseFloat(result.payment.soTienThu),
+        paymentMethod: result.payment.phuongThucThanhToan,
+        debtBefore: result.debtBefore,
+        debtAfter: result.debtAfter,
       },
       message: 'Thu tiền thành công',
     });
