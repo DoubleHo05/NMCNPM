@@ -1,8 +1,9 @@
 {
   "insights": [
-    "📚 Kho sách: 100 cuốn",
-    "👥 1 khách hàng",
-    "🏆 Bán chạy: \"Mắt Biếc\""
+    "💸 **Doanh thu 0đ + 0 khách: Cửa hàng không hoạt động/khách không chi tiêu**  ",
+    "📚 **Tồn kho 100 cuốn nhưng không bán được: Rủi ro ứ đọng vốn & hư hỏng**  ",
+    "👥 **Khách hàng = 0: Vấn đề tiếp thị hoặc trải nghiệm mua hàng cần cải thiện**  ",
+    "❓ **\"Mắt Biếc\" là sách chạy nhất? Mâu thuẫn dữ liệu khi không có giao dịch**"
   ],
-  "timestamp": 1768842582609
+  "timestamp": 1768877791701
 }

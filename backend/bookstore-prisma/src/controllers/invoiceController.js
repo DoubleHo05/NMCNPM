@@ -168,6 +168,78 @@ const createInvoice = async (req, res) => {
       });
     }
 
+    // Lấy các quy định từ database
+    const rules = await prisma.quyDinh.findMany();
+    const rulesMap = {};
+    rules.forEach((rule) => {
+      rulesMap[rule.tenQuyDinh] = rule.giaTri;
+    });
+
+    // Quy định QĐ2: Nợ tối đa cho phép (mặc định 20,000đ)
+    const maxCustomerDebt = parseInt(rulesMap['NoCuoiToiDa']) || 20000;
+    // Quy định QĐ2: Tồn kho tối thiểu sau bán (mặc định 20 cuốn)
+    const minStockAfterSale = parseInt(rulesMap['TonKhoSauBanToiThieu']) || 20;
+
+    // ===== KIỂM TRA QĐ2: Khách hàng nợ không quá mức cho phép =====
+    if (customerId) {
+      const customer = await prisma.khachHang.findUnique({
+        where: { maKH: parseInt(customerId) },
+        select: { tenKH: true, tienNo: true },
+      });
+
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy khách hàng',
+        });
+      }
+
+      const currentDebt = parseFloat(customer.tienNo) || 0;
+      if (currentDebt > maxCustomerDebt) {
+        return res.status(422).json({
+          success: false,
+          message: `Khách hàng "${customer.tenKH}" đang nợ ${currentDebt.toLocaleString()}đ, vượt quá mức cho phép (${maxCustomerDebt.toLocaleString()}đ). Không thể lập hóa đơn.`,
+          errorCode: 'DEBT_LIMIT_EXCEEDED',
+        });
+      }
+    }
+
+    // ===== KIỂM TRA QĐ2: Tồn kho sau bán phải >= tồn tối thiểu =====
+    for (const item of items) {
+      const book = await prisma.sach.findUnique({
+        where: { maSach: parseInt(item.bookId) },
+        select: { tenSach: true, soLuongTon: true },
+      });
+
+      if (!book) {
+        return res.status(404).json({
+          success: false,
+          message: `Không tìm thấy sách với mã: ${item.bookId}`,
+        });
+      }
+
+      const currentStock = book.soLuongTon || 0;
+      const stockAfterSale = currentStock - item.quantity;
+
+      // Kiểm tra đủ tồn kho để bán
+      if (currentStock < item.quantity) {
+        return res.status(422).json({
+          success: false,
+          message: `Sách "${book.tenSach}" chỉ còn ${currentStock} cuốn, không đủ để bán ${item.quantity} cuốn.`,
+          errorCode: 'INSUFFICIENT_STOCK',
+        });
+      }
+
+      // Kiểm tra tồn kho sau bán >= tồn tối thiểu
+      if (stockAfterSale < minStockAfterSale) {
+        return res.status(422).json({
+          success: false,
+          message: `Sách "${book.tenSach}" sau khi bán chỉ còn ${stockAfterSale} cuốn, không đạt tồn tối thiểu (${minStockAfterSale} cuốn). Vui lòng giảm số lượng bán.`,
+          errorCode: 'MIN_STOCK_VIOLATED',
+        });
+      }
+    }
+
     // Tính tổng tiền
     let tongTien = 0;
     for (const item of items) {

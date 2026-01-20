@@ -360,6 +360,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!customer && customerId) return { success: false, message: 'Khách hàng không tồn tại', totalAmount: 0 };
     if (!items || items.length === 0) return { success: false, message: 'Chưa chọn sách', totalAmount: 0 };
 
+    // ===== KIỂM TRA QĐ2: Khách hàng nợ không quá mức cho phép =====
+    if (customer && customer.currentDebt > rules.maxCustomerDebt) {
+      return { 
+        success: false, 
+        message: `QĐ2 Vi phạm: Khách hàng "${customer.name}" đang nợ ${customer.currentDebt.toLocaleString()}đ, vượt quá mức cho phép (${rules.maxCustomerDebt.toLocaleString()}đ). Không thể lập hóa đơn.`,
+        totalAmount: 0 
+      };
+    }
+
     for (const item of items) {
       const book = books.find(b => b.id === item.bookId);
       if (!book) return { success: false, message: 'Sách không tồn tại', totalAmount: 0 };

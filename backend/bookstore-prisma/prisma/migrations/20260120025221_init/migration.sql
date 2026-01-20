@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `khachhang` ADD COLUMN `TienNo` DECIMAL(15, 2) NULL DEFAULT 0;
