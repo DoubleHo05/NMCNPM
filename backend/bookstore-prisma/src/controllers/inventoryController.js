@@ -15,8 +15,12 @@ const importGoods = async (req, res) => {
 
         // Tính tổng tiền nhập
         const tongTienNhap = chiTietNhap.reduce((total, item) => {
-            return total + (item.soLuongNhap * item.giaNhap);
+            const itemTotal = (item.soLuongNhap * item.giaNhap);
+            console.log(`[DEBUG] Item: ${item.tenSach}, SL: ${item.soLuongNhap}, Gia: ${item.giaNhap}, ThanhTien: ${itemTotal}`);
+            return total + itemTotal;
         }, 0);
+
+        console.log(`[DEBUG] TongTienNhap Calculated: ${tongTienNhap}`);
 
         // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
         // Tăng timeout lên 60s vì logic import phức tạp

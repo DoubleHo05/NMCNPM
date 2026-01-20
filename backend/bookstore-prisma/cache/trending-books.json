@@ -1,35 +1,35 @@
 {
   "books": [
     {
-      "title": "Mắt Biếc",
+      "title": "Tôi Thấy Hoa Vàng Trên Cỏ Xanh",
       "author": "Nguyễn Nhật Ánh",
-      "isbn": "978604105",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/8/9/8935235228276.jpg"
-    },
-    {
-      "title": "Đắc Nhân Tâm",
-      "author": "Dale Carnegie",
-      "isbn": "9786041234571",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/8/9/8935086840542.jpg"
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     },
     {
       "title": "Nhà Giả Kim",
       "author": "Paulo Coelho",
-      "isbn": "9786041234572",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/n/h/nha-gia-kim-tai-ban-2020.jpg"
-    },
-    {
-      "title": "Sapiens: Lược Sử Loài Người",
-      "author": "Yuval Noah Harari",
-      "isbn": "9786041234584",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/s/a/sapiens.jpg"
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     },
     {
       "title": "Muôn Kiếp Nhân Sinh",
-      "author": "Nguyên Phong",
-      "isbn": "9786041234593",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/m/u/muon-kiep-nhan-sinh.jpg"
+      "author": "Nguyễn Phong",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    },
+    {
+      "title": "Đắc Nhân Tâm",
+      "author": "Dale Carnegie",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    },
+    {
+      "title": "Minh Sư",
+      "author": "Trần Thanh Cảnh",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     }
   ],
-  "timestamp": 1768845116470
+  "timestamp": 1768887723749
 }

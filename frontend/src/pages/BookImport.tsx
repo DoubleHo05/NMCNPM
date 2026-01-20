@@ -698,10 +698,13 @@ const BookImport: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">Giá nhập/bìa (VNĐ) <span className="text-red-500">*</span></label>
                           <input
-                            type="number"
+                            type="text"
                             className={`w-full p-2.5 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900 ${modalErrors.price ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                            value={currentBook.price === 0 ? '' : currentBook.price}
-                            onChange={e => handleModalChange('price', e.target.value === '' ? 0 : parseInt(e.target.value))}
+                            value={currentBook.price === 0 ? '' : currentBook.price.toLocaleString('vi-VN')}
+                            onChange={e => {
+                              const val = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                              handleModalChange('price', isNaN(val) ? 0 : val);
+                            }}
                             placeholder="0"
                           />
                           {modalErrors.price && <p className="text-red-500 text-xs mt-1 font-medium">{modalErrors.price}</p>}
