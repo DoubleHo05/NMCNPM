@@ -88,10 +88,10 @@ const BookForm: React.FC = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isEditMode && id) {
-            updateBook(id, formData);
+            await updateBook(id, formData);
             showToast('Cập nhật sách thành công!', 'success');
         } else {
             addBook(formData);

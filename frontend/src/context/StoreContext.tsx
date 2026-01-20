@@ -35,8 +35,8 @@ interface StoreContextType {
   getCustomer: (id: string) => Customer | undefined;
   // CRUD Books
   addBook: (book: Book) => void;
-  updateBook: (id: string, book: Partial<Book>) => void;
-  deleteBook: (id: string) => void;
+  updateBook: (id: string, book: Partial<Book>) => Promise<void>;
+  deleteBook: (id: string) => Promise<void>;
   // Notifications
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => void;
   markNotificationsAsRead: () => void;
@@ -59,6 +59,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Loading & Error states
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [booksError, setBooksError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true); // Prevent flicker during initial load
 
   // Mapping from Frontend Rule Keys to Backend Setting Names
   const SETTING_Name_MAPPING: Record<keyof SystemRules, string> = {
@@ -69,9 +70,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     usePaymentRule: 'SuDungQuyDinhThuTien'
   };
 
+  // Ref to prevent double fetch (React strict mode / user state changing)
+  const hasFetchedRef = React.useRef(false);
+
   // Fetch initial data
   useEffect(() => {
+    // Prevent double fetch
+    if (hasFetchedRef.current) return;
+
     const fetchData = async () => {
+      hasFetchedRef.current = true; // Mark as fetching
       try {
         // Fetch Settings
         const settingsRes = await settingService.getAllSettings();
@@ -150,10 +158,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
+      } finally {
+        setInitialLoading(false); // Done loading, allow render
       }
     };
 
-    fetchData();
+    // Only fetch if user is logged in
+    if (user) {
+      fetchData();
+    } else {
+      setInitialLoading(false); // No user, just show content
+    }
   }, [user]); // Re-fetch if user changes, though mostly global
 
   // [NEW] Refresh Books Function
@@ -245,12 +260,37 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setBooks(prev => [...prev, book]);
   };
 
-  const updateBook = (id: string, updatedFields: Partial<Book>) => {
-    setBooks(prev => prev.map(b => b.id === id ? { ...b, ...updatedFields } : b));
+  const updateBook = async (id: string, updatedFields: Partial<Book>) => {
+    console.log('[DEBUG] updateBook called with:', { id, updatedFields });
+    try {
+      // Call API to update in database
+      const response = await bookService.updateBook(id, updatedFields);
+      console.log('[DEBUG] updateBook response:', response);
+      if (response.success) {
+        // Update local state after successful API call
+        setBooks(prev => prev.map(b => b.id === id ? { ...b, ...updatedFields } : b));
+        console.log('[DEBUG] Book updated successfully');
+      } else {
+        console.error('Failed to update book:', response.message);
+      }
+    } catch (error) {
+      console.error('Error updating book:', error);
+    }
   };
 
-  const deleteBook = (id: string) => {
-    setBooks(prev => prev.filter(b => b.id !== id));
+  const deleteBook = async (id: string) => {
+    try {
+      // Call API to delete from database
+      const response = await bookService.deleteBook(id);
+      if (response.success) {
+        // Update local state after successful API call
+        setBooks(prev => prev.filter(b => b.id !== id));
+      } else {
+        console.error('Failed to delete book:', response.message);
+      }
+    } catch (error) {
+      console.error('Error deleting book:', error);
+    }
   };
 
   // BM1 & QĐ1 Logic: Import Books
@@ -362,10 +402,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // ===== KIỂM TRA QĐ2: Khách hàng nợ không quá mức cho phép =====
     if (customer && customer.currentDebt > rules.maxCustomerDebt) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `QĐ2 Vi phạm: Khách hàng "${customer.name}" đang nợ ${customer.currentDebt.toLocaleString()}đ, vượt quá mức cho phép (${rules.maxCustomerDebt.toLocaleString()}đ). Không thể lập hóa đơn.`,
-        totalAmount: 0 
+        totalAmount: 0
       };
     }
 
@@ -637,7 +677,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       markNotificationsAsRead,
       refreshCustomers
     }}>
-      {children}
+      {initialLoading ? (
+        <div className="flex items-center justify-center min-h-screen bg-slate-50">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-600">Đang tải dữ liệu...</p>
+          </div>
+        </div>
+      ) : children}
     </StoreContext.Provider>
   );
 };

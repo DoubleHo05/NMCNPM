@@ -11,13 +11,13 @@ export const bookService = {
     },
 
     updateBook: async (id: string | number, data: Partial<Book>) => {
-        return apiRequest(`/books/${id}`, {
+        return apiRequest<{ success: boolean; message: string; data?: Book }>(`/books/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data)
         });
     },
 
     deleteBook: async (id: string | number) => {
-        return apiRequest(`/books/${id}`, { method: 'DELETE' });
+        return apiRequest<{ success: boolean; message: string }>(`/books/${id}`, { method: 'DELETE' });
     }
 };

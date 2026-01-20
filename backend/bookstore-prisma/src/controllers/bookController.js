@@ -238,12 +238,35 @@ exports.searchBooks = async (req, res) => {
 exports.updateBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, isbn, categoryId, publisherId, importPrice, salePrice, description, imageUrl, barcode } = req.body;
+    // Accept both frontend and backend field names
+    const {
+      title, isbn,
+      categoryId, category,  // category can be name string
+      publisherId, publisher, // publisher can be name string
+      importPrice, salePrice, price,  // price = salePrice
+      description, imageUrl, barcode,
+      author, // author name string
+      pages, weight, dimensions, publishYear
+    } = req.body;
+
+    console.log('[DEBUG] updateBook called with id:', id, 'type:', typeof id);
+
+    // Validate ID - must be a valid number
+    const bookId = parseInt(id);
+    if (isNaN(bookId)) {
+      console.error('[ERROR] Invalid book ID:', id);
+      return res.status(400).json({
+        success: false,
+        message: `ID sách không hợp lệ: ${id}`
+      });
+    }
 
     // Check if book exists
     const existingBook = await prisma.sach.findUnique({
-      where: { maSach: parseInt(id) }
+      where: { maSach: bookId }
     });
+
+    console.log('[DEBUG] existingBook found:', existingBook ? 'Yes' : 'No');
 
     if (!existingBook) {
       return res.status(404).json({
@@ -254,14 +277,65 @@ exports.updateBook = async (req, res) => {
 
     // Prepare update data
     const updateData = {};
-    if (title !== undefined) updateData.tenSach = title;
-    if (isbn !== undefined) updateData.isbn = isbn;
-    if (categoryId !== undefined) updateData.maTheLoai = parseInt(categoryId);
-    if (publisherId !== undefined) updateData.maNXB = parseInt(publisherId);
-    if (importPrice !== undefined) updateData.giaNhap = parseFloat(importPrice);
-    if (salePrice !== undefined) updateData.giaBanLe = parseFloat(salePrice);
+    if (title !== undefined && title !== '') updateData.tenSach = title;
+    // Only update ISBN if it's a non-empty string (avoid unique constraint error)
+    if (isbn !== undefined && isbn !== null && isbn.trim() !== '') {
+      updateData.isbn = isbn.trim();
+    }
     if (description !== undefined) updateData.moTa = description;
     if (barcode !== undefined) updateData.barcode = barcode;
+    if (pages !== undefined) updateData.soTrang = parseInt(pages);
+    if (weight !== undefined) updateData.trongLuong = parseInt(weight);
+    if (dimensions !== undefined) updateData.kichThuoc = dimensions;
+    if (publishYear !== undefined) updateData.namXuatBan = parseInt(publishYear);
+
+    // Handle price (prefer salePrice, fallback to price)
+    if (salePrice !== undefined) updateData.giaBanLe = parseFloat(salePrice);
+    else if (price !== undefined) updateData.giaBanLe = parseFloat(price);
+
+    if (importPrice !== undefined) updateData.giaNhap = parseFloat(importPrice);
+
+    // Handle categoryId or category name
+    if (categoryId !== undefined) {
+      updateData.maTheLoai = parseInt(categoryId);
+    } else if (category !== undefined && category !== '') {
+      // Find or create category by name
+      let cat = await prisma.theLoai.findUnique({ where: { tenTheLoai: category } });
+      if (!cat) {
+        cat = await prisma.theLoai.create({ data: { tenTheLoai: category } });
+      }
+      updateData.maTheLoai = cat.maTheLoai;
+    }
+
+    // Handle publisherId or publisher name
+    if (publisherId !== undefined) {
+      updateData.maNXB = parseInt(publisherId);
+    } else if (publisher !== undefined && publisher !== '') {
+      // Find or create publisher by name
+      let pub = await prisma.nhaXuatBan.findUnique({ where: { tenNXB: publisher } });
+      if (!pub) {
+        pub = await prisma.nhaXuatBan.create({ data: { tenNXB: publisher } });
+      }
+      updateData.maNXB = pub.maNXB;
+    }
+
+    // Handle author - update SachTacGia relations
+    if (author !== undefined && author !== '') {
+      // Find or create author
+      let authorRecord = await prisma.tacGia.findFirst({ where: { tenTacGia: author } });
+      if (!authorRecord) {
+        authorRecord = await prisma.tacGia.create({ data: { tenTacGia: author } });
+      }
+
+      // Delete existing author relations and create new one
+      await prisma.sachTacGia.deleteMany({ where: { maSach: parseInt(id) } });
+      await prisma.sachTacGia.create({
+        data: {
+          maSach: parseInt(id),
+          maTacGia: authorRecord.maTacGia
+        }
+      });
+    }
 
     // Handle image - could be URL or base64
     if (imageUrl !== undefined) {

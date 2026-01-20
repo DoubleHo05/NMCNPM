@@ -1,35 +1,35 @@
 {
   "books": [
     {
-      "title": "Tôi Thấy Hoa Vàng Trên Cỏ Xanh",
-      "author": "Nguyễn Nhật Ánh",
+      "title": "Đường Xưa Mây Trắng",
+      "author": "Thích Nhất Hạnh",
+      "isbn": "",
+      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
+    },
+    {
+      "title": "Tuổi Trẻ Đáng Giá Bao Nhiêu",
+      "author": "Rosie Nguyễn",
       "isbn": "",
       "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     },
     {
       "title": "Nhà Giả Kim",
-      "author": "Paulo Coelho",
+      "author": "Paulo Coelho (dịch giả: Lê Chu Cầu)",
       "isbn": "",
       "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     },
     {
-      "title": "Muôn Kiếp Nhân Sinh",
-      "author": "Nguyễn Phong",
+      "title": "Cây Cam Ngọt Của Tôi",
+      "author": "José Mauro de Vasconcelos (dịch giả: Ngọc Linh)",
       "isbn": "",
       "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     },
     {
-      "title": "Đắc Nhân Tâm",
-      "author": "Dale Carnegie",
-      "isbn": "",
-      "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
-    },
-    {
-      "title": "Minh Sư",
-      "author": "Trần Thanh Cảnh",
+      "title": "Tôi Tài Giỏi Bạn Cũng Thế!",
+      "author": "Adam Khoo",
       "isbn": "",
       "image": "https://cdn0.fahasa.com/media/catalog/product/placeholder.jpg"
     }
   ],
-  "timestamp": 1768887723749
+  "timestamp": 1768892606066
 }
