@@ -6,6 +6,13 @@ export const bookService = {
         return apiRequest<{ data: any[] }>('/books', { method: 'GET' });
     },
 
+    createBook: async (data: Partial<Book>) => {
+        return apiRequest<{ data: Book }>('/books', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
     getBookById: async (id: string | number) => {
         return apiRequest<{ data: Book }>(`/books/${id}`, { method: 'GET' });
     },

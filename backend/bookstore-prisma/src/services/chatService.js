@@ -37,22 +37,22 @@ async function getStoreStats() {
         `;
 
         // Get total revenue
-        const totalRevenue = await prisma.hoaDon.aggregate({
+        const totalRevenue = await prisma.hoaDonBanSach.aggregate({
             _sum: { thanhTien: true }
         });
 
         // Get this month's revenue
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthlyRevenue = await prisma.hoaDon.aggregate({
+        const monthlyRevenue = await prisma.hoaDonBanSach.aggregate({
             where: {
-                ngayLap: { gte: firstDayOfMonth }
+                ngayBan: { gte: firstDayOfMonth } // Changed from ngayLap to ngayBan to match schema
             },
             _sum: { thanhTien: true }
         });
 
         // Get total orders
-        const totalOrders = await prisma.hoaDon.count();
+        const totalOrders = await prisma.hoaDonBanSach.count();
 
         return {
             totalBooks,
@@ -87,7 +87,7 @@ async function callAI(prompt, context = '') {
             const openrouter = new OpenRouter({ apiKey });
 
             const completion = await openrouter.chat.send({
-                model: 'openai/gpt-oss-120b:free',
+                model: 'google/gemini-2.0-flash-exp:free',
                 messages: [
                     {
                         role: 'system',

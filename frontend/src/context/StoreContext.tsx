@@ -34,9 +34,9 @@ interface StoreContextType {
   getBook: (id: string) => Book | undefined;
   getCustomer: (id: string) => Customer | undefined;
   // CRUD Books
-  addBook: (book: Book) => void;
-  updateBook: (id: string, book: Partial<Book>) => void;
-  deleteBook: (id: string) => void;
+  addBook: (book: Book) => Promise<boolean>;
+  updateBook: (id: string, book: Partial<Book>) => Promise<boolean>;
+  deleteBook: (id: string) => Promise<boolean>;
   // Notifications
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => void;
   markNotificationsAsRead: () => void;
@@ -241,16 +241,79 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // CRUD Books Operations
-  const addBook = (book: Book) => {
-    setBooks(prev => [...prev, book]);
+  const addBook = async (book: Book): Promise<boolean> => {
+    try {
+      const response = await bookService.createBook(book);
+      if ((response as any).success) {
+        await refreshBooks();
+        addNotification({
+          type: 'inventory',
+          title: 'Thành công',
+          message: `Đã thêm sách "${book.title}" thành công`
+        });
+        return true;
+      } else {
+        throw new Error((response as any).message);
+      }
+    } catch (err: any) {
+      console.error('Failed to add book:', err);
+      addNotification({
+        type: 'inventory',
+        title: 'Lỗi',
+        message: err.message || 'Không thể thêm sách'
+      });
+      return false;
+    }
   };
 
-  const updateBook = (id: string, updatedFields: Partial<Book>) => {
-    setBooks(prev => prev.map(b => b.id === id ? { ...b, ...updatedFields } : b));
+  const updateBook = async (id: string, updatedFields: Partial<Book>): Promise<boolean> => {
+    try {
+      const response = await bookService.updateBook(id, updatedFields);
+      if ((response as any).success) {
+        await refreshBooks();
+        addNotification({
+          type: 'inventory',
+          title: 'Thành công',
+          message: `Đã cập nhật sách thành công`
+        });
+        return true;
+      } else {
+        throw new Error((response as any).message);
+      }
+    } catch (err: any) {
+      console.error('Failed to update book:', err);
+      addNotification({
+        type: 'inventory',
+        title: 'Lỗi',
+        message: err.message || 'Không thể cập nhật sách'
+      });
+      return false;
+    }
   };
 
-  const deleteBook = (id: string) => {
-    setBooks(prev => prev.filter(b => b.id !== id));
+  const deleteBook = async (id: string): Promise<boolean> => {
+    try {
+      const response = await bookService.deleteBook(id);
+      if ((response as any).success) {
+        setBooks(prev => prev.filter(b => b.id !== id)); // Optimistic remove immediately
+        addNotification({
+          type: 'inventory',
+          title: 'Thành công',
+          message: 'Đã xóa sách thành công'
+        });
+        return true;
+      } else {
+        throw new Error((response as any).message);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete book:', err);
+      addNotification({
+        type: 'inventory',
+        title: 'Lỗi',
+        message: err.message || 'Không thể xóa sách'
+      });
+      return false;
+    }
   };
 
   // BM1 & QĐ1 Logic: Import Books
@@ -362,10 +425,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // ===== KIỂM TRA QĐ2: Khách hàng nợ không quá mức cho phép =====
     if (customer && customer.currentDebt > rules.maxCustomerDebt) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `QĐ2 Vi phạm: Khách hàng "${customer.name}" đang nợ ${customer.currentDebt.toLocaleString()}đ, vượt quá mức cho phép (${rules.maxCustomerDebt.toLocaleString()}đ). Không thể lập hóa đơn.`,
-        totalAmount: 0 
+        totalAmount: 0
       };
     }
 
